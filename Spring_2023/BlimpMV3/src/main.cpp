@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "IMU_Control.h"
 #include "EMAFilter.h"
 #include "PID.h"
@@ -90,9 +91,11 @@ String s = "";
 
 std::vector<std::vector<double>> detections;
 
+// declare function
+void processSerial(String msg);
+
 
 void setup() {
-  
   // put your setup code here, to run once:
   Serial.begin(115200);
 
