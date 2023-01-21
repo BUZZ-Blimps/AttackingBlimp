@@ -1,4 +1,5 @@
-#include <Arduino.h>
+#include <tgmath.h>
+
 #include "IMU_Control.h"
 #include "EMAFilter.h"
 #include "PID.h"
@@ -90,12 +91,11 @@ String s = "";
 
 
 std::vector<std::vector<double>> detections;
-
-// declare function
 void processSerial(String msg);
 
 
 void setup() {
+  
   // put your setup code here, to run once:
   Serial.begin(115200);
 
@@ -126,9 +126,6 @@ void setup() {
 }
 
 void loop() {
-  double upInput = 0;
-  double forwardInput = 0;
-  double yawInput = 0;    //120 degrees per second
   // put your main code here, to run repeatedly:
   
   //reading Serial2 color coordinates (OpenMV) and pass them to PID
@@ -223,7 +220,7 @@ void loop() {
         if (motorClock.isReady()) {
           //State Machine
           //MANUAL
-          //Default   
+          //Default
           
           forwardInput = udp.packetMoveGetInput()[4].toDouble();
           yawInput = udp.packetMoveGetInput()[1].toDouble();
@@ -289,14 +286,14 @@ void loop() {
           case searching:
             if (true) {
               
-              yawInput = -16;   //turning rate while searching
+              yawInput = -20;   //turning rate while searching
 
 
               //check if the height of the blimp is within this range (ft), adjust accordingly to fall in the zone 
               if (ceilHeight > 110) {
                 Serial.println("up");
-                upInput = -250*cos(pitchAngle*3.1415/180.0);
-                forwardInput = -250*sin(pitchAngle*3.1415/180.0);
+                upInput = 250*cos(pitchAngle*3.1415/180.0);
+                forwardInput = 250*sin(pitchAngle*3.1415/180.0);
                 
               } else if (ceilHeight < 85) {
                 Serial.println("down");
@@ -318,7 +315,7 @@ void loop() {
             if (detections.size() == 3 && detections[targetColor].size() == 2 && detections[targetColor][0] < 500) {
                 yawInput = xPos.calculate(-detections[targetColor][0], 0, 100);
                 upInput = yPos.calculate(-detections[targetColor][1], 0, 100);
-                forwardInput = 500; //approaching thrust (300 as defalt)
+                forwardInput = 300; //approaching thrust (300 as defalt)
             } else {
               state = searching;
             }
@@ -330,28 +327,41 @@ void loop() {
         
       }
     }
-        Serial.println("previous");
-        Serial.println(yawInput);
-        Serial.println("yaw rate");
-        Serial.println(yawRate);
+//        Serial.println("previous");
+//        Serial.println(yawInput);
+//        Serial.println("yaw rate");
+//        Serial.println(yawRate);
          //PID controller (desired, setpoint, sampling rate)
-         double pitch = pitchRatePID.calculate(0, pitchRate, 100);
-         double yawInput = yawRatePID.calculate(yawInput, yawRate, 100);   //yawInput SEEMS TO BE AN ISSUE, it's getting set to 0 all the time
+         //double pitch = pitchRatePID.calculate(0, pitchRate, 100);
+         
+         double yawPIDInput = 0.0;
+         double deadband = 2.0; //To do
+         
+         yawPIDInput = yawRatePID.calculate(yawInput, yawRate, 100);   
+         if (abs(yawInput-yawRate) < deadband) {
+             yawPIDInput = 0;
+         } else {
+             yawPIDInput = tanh(yawPIDInput)*abs(yawPIDInput);
+         }
+         
          
         //turing the motors off for debugging for second case
-        if (autonomousState == manual && MOTORS_OFF == false && motorsOff == false) {
-          Serial.println("after");
-          Serial.println(yawInput);
+        if (MOTORS_OFF == false && motorsOff == false) {
+//          Serial.println("after");
+//          Serial.println(yawInput);
 //          Serial.print(",");
 //          Serial.print(upInput);
 //          Serial.print(",");
 //          Serial.println(forwardInput);
-          motors.update(pitch,forwardInput,upInput,yawInput);
+//            motors.update(0,forwardInput,upInput,yawPIDInput);
+          motors.update(0, forwardInput, upInput, yawPIDInput);
         } else {
           motors.update(0,0,0,0);
         }
   }
 }
+
+// process Serial message from the camera
 void processSerial(String msg) {
     std::vector<double> green;
     std::vector<double> blue;

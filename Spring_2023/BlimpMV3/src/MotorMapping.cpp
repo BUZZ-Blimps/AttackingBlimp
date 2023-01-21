@@ -182,6 +182,10 @@ void MotorMapping::update(double pitch, double forward, double up, double yaw) {
   magR = magR * 2;
   magL = magL * 2;
 
+    char msg[128];
+    snprintf(msg, 128, "magL=%0.2f, magR=%0.2f",magL, magR);
+    Serial.println(msg);
+
   RServo.write(servoRFilter.filter(thetaR));
   LServo.write(servoLFilter.filter(thetaL));
   RMotor.write(this->motorCom(magR));
