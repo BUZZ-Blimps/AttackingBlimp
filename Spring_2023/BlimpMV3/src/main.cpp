@@ -66,7 +66,7 @@ PID pitchRatePID(2.4,0,0);
 //adjust  these for Openmv dont change the middle zeros
 PID xPos(0.25,0,0);
 
-PID yPos(0.2,0,0);
+PID yPos(0.5,0,0);
 
 //WIFI objects
 BlimpClock udpClock;
@@ -290,15 +290,15 @@ void loop() {
 
 
               //check if the height of the blimp is within this range (ft), adjust accordingly to fall in the zone 
-              if (ceilHeight > 110) {
+              if (ceilHeight > 120) {
                 Serial.println("up");
-                upInput = 250*cos(pitchAngle*3.1415/180.0);
-                forwardInput = 250*sin(pitchAngle*3.1415/180.0);
-                
-              } else if (ceilHeight < 85) {
-                Serial.println("down");
                 upInput = 100*cos(pitchAngle*3.1415/180.0);
                 forwardInput = 100*sin(pitchAngle*3.1415/180.0);
+                
+              } else if (ceilHeight < 75) {
+                Serial.println("down");
+                upInput = -100*cos(pitchAngle*3.1415/180.0);
+                forwardInput = -100*sin(pitchAngle*3.1415/180.0);
               } else {
                 upInput = 0;
                 forwardInput = 0;
