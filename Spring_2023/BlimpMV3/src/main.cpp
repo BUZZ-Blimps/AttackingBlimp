@@ -213,10 +213,7 @@ void loop() {
     }
 
     //state machine
-    if (autonomousState == lost){
-      //LOST
-      motors.update(0,0,0,0);
-    } else if (autonomousState == manual){
+    if (autonomousState == manual){
         if (motorClock.isReady()) {
           //State Machine
           //MANUAL
@@ -346,7 +343,11 @@ void loop() {
          
          
         //turing the motors off for debugging for second case
-        if (MOTORS_OFF == false && motorsOff == false) {
+        if (autonomousState == lost)
+        {
+          motors.update(0,0,0,0);
+        }
+        else if (MOTORS_OFF == false && motorsOff == false) {
 //          Serial.println("after");
 //          Serial.println(yawInput);
 //          Serial.print(",");
