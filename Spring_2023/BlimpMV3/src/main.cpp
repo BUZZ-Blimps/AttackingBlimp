@@ -344,9 +344,11 @@ void loop() {
              yawPIDInput = tanh(yawPIDInput)*abs(yawPIDInput);
          }
          
-         
+        if (autonomousState == lost) {
+          motors.update(0,0,0,0);
+        }
         //turing the motors off for debugging for second case
-        if (MOTORS_OFF == false && motorsOff == false) {
+        else if (MOTORS_OFF == false && motorsOff == false) {
 //          Serial.println("after");
 //          Serial.println(yawInput);
 //          Serial.print(",");
