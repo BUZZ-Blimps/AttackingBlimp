@@ -7,7 +7,7 @@ from pyb import UART
 # The below thresholds track in general red/green things. You may wish to tune them...
 
 thresholds = [(0, 42, 23, 61, 20, 52), # generic_red_thresholds
-              (0, 100, 14, 127, -9, 13), # generic_pink_thresholds (GAMEBALL COLOR)
+              (26, 86, -114, -17, 6, 64), # generic_green_thresholds (GAMEBALL COLOR)
               (3, 66, -24, 32, -76, -28)] # generic_blue_thresholds
 
 # You may pass up to 16 thresholds above. However, it's not really possible to segment any
@@ -47,11 +47,11 @@ while(True):
     img = sensor.snapshot()
 
     #bloblist object that contains all the blobs
-    blobList = img.find_blobs(thresholds, pixels_threshold=50, area_threshold=500)  #Threshhold number for resolution(distance)
+    blobList = img.find_blobs(thresholds, pixels_threshold=50, area_threshold=100)  #Threshhold number for resolution(distance)
     #the red,green,blue arrays to hold the index of the biggest blob and the area of the blobs
     #for comparison
     redBlob = [1000,1000,0]
-    pinkBlob = [1000,1000,0] #Game ball
+    greenBlob = [1000,1000,0] #Game ball
     blueBlob =[1000,1000,0]
 
 
@@ -61,15 +61,15 @@ while(True):
             if blob.density() > 0.3:
     #find the biggest pixel area for each color, and center the camera based on the color we pick
         #code = 1 is red
-        #code = 2 is pink
+        #code = 2 is green
         #code = 4 is blue
         #catogerize color
                 if blob.code() == 1:
                     if blob.pixels() > redBlob[2]:
                         redBlob = [blob.cxf(), blob.cyf(), blob.pixels()]
                 elif blob.code() == 2:
-                    if blob.pixels()> pinkBlob[2]:
-                        pinkBlob = [blob.cxf(), blob.cyf(), blob.pixels()]
+                    if blob.pixels()> greenBlob[2]:
+                        greenBlob = [blob.cxf(), blob.cyf(), blob.pixels()]
                 elif blob.code() == 4:
                     if blob.pixels()> blueBlob[2]:
                         blueBlob = [blob.cxf(), blob.cyf(), blob.pixels()]
@@ -94,9 +94,9 @@ while(True):
     uart.write(',')
     uart.write('rr,')
     uart.write(';')
-    uart.write("%f"%pinkBlob[0])
+    uart.write("%f"%greenBlob[0])
     uart.write(',')
-    uart.write("%f"%pinkBlob[1])
+    uart.write("%f"%greenBlob[1])
     uart.write(',')
     uart.write('gg,')
     uart.write(';')
@@ -113,8 +113,8 @@ while(True):
     #print("%f\n"%redBlob[0], end='')
     #print("%f\n"%redBlob[1], end='')
     #print("r")
-    #print("%f\n"%pinkBlob[0], end='')
-    #print("%f\n"%pinkBlob[1], end='')
+    #print("%f\n"%greenBlob[0], end='')
+    #print("%f\n"%greenBlob[1], end='')
     #print("p")
     #print("%f\n"%blueBlob[0], end='')
     #print("%f\n"%blueBlob[1], end='')
