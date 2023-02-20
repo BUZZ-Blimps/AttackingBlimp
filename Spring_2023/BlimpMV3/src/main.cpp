@@ -345,7 +345,7 @@ void loop() {
           motors.update(0,0,0,0);
         }
         //turing the motors off for debugging for second case
-        else if (autonomousState == lost)
+        if (autonomousState == lost)
         {
           motors.update(0,0,0,0);
         }
