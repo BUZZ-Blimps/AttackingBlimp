@@ -312,7 +312,7 @@ void loop() {
             if (detections.size() == 3 && detections[targetColor].size() == 2 && detections[targetColor][0] < 500) {
                 yawInput = xPos.calculate(-detections[targetColor][0], 0, 100);
                 upInput = yPos.calculate(-detections[targetColor][1], 0, 100);
-                forwardInput = 300; //approaching thrust (300 as defalt)
+                forwardInput = 150; //approaching thrust (300 as default)
             } else {
               state = searching;
             }
