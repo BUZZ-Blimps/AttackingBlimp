@@ -21,19 +21,21 @@ public:
 	Quack<String> packets[4];
 
 	void init();
-  void establishComm();
+  	void establishComm();
+	String getIPAddress();
+	//String getBlimpID(); // DEPRECATED - use getIPAddress() instead
 
 	void send(String message);
 	void send(String targetID, String flag, String message);
 
 	bool readPacket(String* packet);
 	void readPackets();
-  String packetMove;
-  unsigned long last_message_recieved = 0;
+  	String packetMove;
+  	unsigned long last_message_recieved = 0;
 
 	String packetGetTargetID(String packet);
 	String packetGetSourceID(String packet);
 	String packetGetFlag(String packet);
 	String packetGetMessage(String packet);
-  std::vector<String> packetMoveGetInput();
+  	std::vector<String> packetMoveGetInput();
 };
