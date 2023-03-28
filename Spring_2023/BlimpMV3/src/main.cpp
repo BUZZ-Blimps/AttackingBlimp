@@ -1,12 +1,19 @@
 #include <tgmath.h>
 
-#include "IMU_Control.h"
+#include "BerryIMU_v3.h"
 #include "EMAFilter.h"
 #include "PID.h"
 #include "BlimpClock.h"
 #include "UDPComm.h"
 #include "ESP32Servo.h"
 #include "MotorMapping.h"
+#include "accelGCorrection.h"
+#include "BangBang.h"
+#include "baro_acc_kf.h"
+#include "gyro_ekf.h"
+
+#include "Madgwick_Filter.h"
+
 
 //this is the 3 feedbacks
 #define FEEDBACK_BUF_SIZE 3
@@ -19,6 +26,23 @@
 #define OUTERLOOP 10  //Hz
 
 #define IDNAME(name) #name
+
+#define DIST_CONSTANT             0.002
+
+#define GYRO_X_CONSTANT           480.0
+#define GYRO_YAW_CONSTANT         0
+
+#define GYRO_Y_CONSTANT           323.45
+
+//Define ceiling height from where we plug in battery in meters
+#define CEIL_HEIGHT_FROM_START    4 
+
+//sensor and controller rates
+#define FAST_SENSOR_LOOP_FREQ           100.0
+#define BARO_LOOP_FREQ                  50.0
+
+//constants
+#define MICROS_TO_SEC             1000000.0
 
 enum states {
   searching,
@@ -51,13 +75,30 @@ const int RSPIN = 12; //12 is pin for Right servo object
 //motor->(pin,deadband,turn on,min,max)
 MotorMapping motors(LSPIN, RSPIN, LMPIN, RMPIN, 5, 50, 1000, 2000,0.3);
 
-IMU_Control imu;
+BerryIMU_v3 BerryIMU;
+Madgwick_Filter madgwick;
+BaroAccKF kf;
+AccelGCorrection accelGCorrection;
+
+// Kalman_Filter_Tran_Vel_Est kal_vel;
+// OpticalEKF xekf(DIST_CONSTANT, GYRO_X_CONSTANT, GYRO_YAW_CONSTANT);
+// OpticalEKF yekf(DIST_CONSTANT, GYRO_Y_CONSTANT, 0);
+
+GyroEKF gyroEKF;
 
 EMAFilter yawRateFilter(0.2);
 EMAFilter pitchRateFilter(0.1);
 
 EMAFilter pitchAngleFilter(0.2);
 EMAFilter rollAngleFilter(0.2);
+
+//pre process for accel before vertical kalman filter
+EMAFilter verticalAccelFilter(0.05);
+
+//baro offset computation from base station value
+EMAFilter baroOffset(0.5);
+//roll offset computation from imu
+EMAFilter rollOffset(0.5);
 
 PID yawRatePID(3,0,0);  
 PID pitchRatePID(2.4,0,0);
@@ -87,6 +128,24 @@ double lastOuterLoopTime = 0;
 
 double ceilHeight = 500;
 
+//IMU orentation
+float rotation = -90;
+
+//timing global variables for each update loop
+float lastSensorFastLoopTick = 0.0;
+float lastBaroLoopTick = 0.0;
+
+//base station baro
+float baseBaro = 0.0;
+
+//corrected baro
+float actualBaro = 0.0;
+
+//sensor data
+float pitch = 0;
+float yaw = 0;
+float roll = 0;
+
 String s = "";
 
 
@@ -107,9 +166,8 @@ void setup() {
     //initializations
     udpClock.setFrequency(100);
     udp.init(); 
-    udp.establishComm();
+    udp.establishComm(); 
     heartbeat.setFrequency(20);
-    
 
     //initialize the feedback data as 0s
     for (int i=0; i < FEEDBACK_BUF_SIZE; i++) {
@@ -117,9 +175,8 @@ void setup() {
     }
 
     motorClock.setFrequency(400);
-
-    imu.IMU_Setup(); 
-
+    BerryIMU.BerryIMU_v3_Setup(); //problem
+    
   
   //wait 2 seconds
   delay(2000);
@@ -161,33 +218,103 @@ void loop() {
         udp.send("0","P",feedbackMessage);
     }
 
-    //fetch imu data
-    imu.update();
+float dt = micros()/MICROS_TO_SEC-lastSensorFastLoopTick;
 
-    //get and filter yaw rate, pitch angle
-    double yawRate = yawRateFilter.filter(imu.getYawRate());
-    double pitchRate = pitchRateFilter.filter(imu.getPitchRate());
-    double pitchAngle = pitchAngleFilter.filter(imu.getPitch());
-    double rollAngle = rollAngleFilter.filter(imu.getRoll())-90;
+  if (dt >= 1.0/FAST_SENSOR_LOOP_FREQ) {
+    lastSensorFastLoopTick = micros()/MICROS_TO_SEC;
 
-    //printing imu data 
-    /*
-    Serial.println(pitchRate);
-    Serial.print("\t");
-    Serial.print(yawRate);
-    Serial.print("\t");
-    Serial.print(pitchAngle);
-    Serial.print("\t");
-    Serial.println(rollAngle);
-    */
+    //read sensor values and update madgwick
+    BerryIMU.IMU_read();
+    BerryIMU.IMU_Flip_Axis();  //BerryIMU.IMU_ROTATION(rotation);  Replace and test!
 
-    /*
-    WebSerial.print(yawRate);
-    WebSerial.print("\t");
-    WebSerial.print(pitchAngle);
-    WebSerial.print("\t");
-    WebSerial.println(rollAngle);
-    */
+    madgwick.Madgwick_Update(BerryIMU.gyr_rateXraw,
+                             BerryIMU.gyr_rateYraw,
+                             BerryIMU.gyr_rateZraw,
+                             BerryIMU.AccXraw,
+                             BerryIMU.AccYraw,
+                             BerryIMU.AccZraw);
+
+   //get orientation from madgwick
+    pitch = madgwick.pitch_final;
+    roll = madgwick.roll_final;
+    yaw = madgwick.yaw_final;
+
+    //compute the acceleration in the barometers vertical reference frame
+    accelGCorrection.updateData(BerryIMU.AccXraw, BerryIMU.AccYraw, BerryIMU.AccZraw, pitch, roll);
+
+    //run the prediction step of the vertical velecity kalman filter
+    kf.predict(dt);
+    // xekf.predict(dt);
+    // yekf.predict(dt);
+    gyroEKF.predict(dt);
+
+
+    //pre filter accel before updating vertical velocity kalman filter
+    verticalAccelFilter.filter(-accelGCorrection.agz);
+
+    //update vertical velocity kalman filter acceleration
+    kf.updateAccel(verticalAccelFilter.last);
+
+    //update filtered yaw rate
+    yawRateFilter.filter(BerryIMU.gyr_rateZraw);
+
+    //perform gyro update
+    gyroEKF.updateGyro(BerryIMU.gyr_rateXraw*3.14/180, BerryIMU.gyr_rateYraw*3.14/180, BerryIMU.gyr_rateZraw*3.14/180);
+    gyroEKF.updateAccel(BerryIMU.AccXraw, BerryIMU.AccYraw, BerryIMU.AccZraw);
+    
+
+    // xekf.updateAccelx(-accelGCorrection.agx);
+    // xekf.updateGyroX(gyroEKF.pitchRate - gyroEKF.pitchRateB);
+    // xekf.updateGyroZ(BerryIMU.gyr_rateZraw);
+
+    // yekf.updateAccelx(-accelGCorrection.agy);
+    // yekf.updateGyroX(gyroEKF.rollRate - gyroEKF.rollRateB);
+    // yekf.updateGyroZ(BerryIMU.gyr_rateZraw);
+
+    
+    // Serial.print(">Z:");
+    // Serial.println(xekf.z);
+
+    // Serial.print(">Opt:");
+    // Serial.println(xekf.opt);
+
+    // Serial.print(">gyro x:");
+    // Serial.println(xekf.gyrox);
+
+    // Serial.print(">Ax:");
+    // Serial.println(xekf.ax);
+
+    // Serial.print(">Velocity:");
+    // Serial.println(xekf.v);
+
+     //print("Yrate", yawRateFilter.last);
+
+    //print("zVel", kf.v);
+
+    
+    // kal_vel.predict_vel();
+    // kal_vel.update_vel_acc(-accelGCorrection.agx/9.81, -accelGCorrection.agy/9.81);
+  }
+
+//update barometere at set barometere frequency
+  dt = micros()/MICROS_TO_SEC-lastBaroLoopTick;
+  if (dt >= 1.0/BARO_LOOP_FREQ) {
+    lastBaroLoopTick = micros()/MICROS_TO_SEC;
+
+    //get most current imu values
+    BerryIMU.IMU_read();
+    BerryIMU.IMU_Flip_Axis();  //BerryIMU.IMU_ROTATION(rotation);  Replace and test!
+    
+    //update kalman with uncorreced barometer data
+    kf.updateBaro(BerryIMU.alt);
+
+
+    //compute the corrected height with base station baro data and offset
+    actualBaro = BerryIMU.alt - baseBaro + baroOffset.last;
+
+    // xekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
+    // yekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
+  }
 
    
     //update motors according to the inputs from the station/joysticks
@@ -288,14 +415,14 @@ void loop() {
 
               //check if the height of the blimp is within this range (ft), adjust accordingly to fall in the zone 
               if (ceilHeight > 120) {
-                Serial.println("up");
-                upInput = 100*cos(pitchAngle*3.1415/180.0);
-                forwardInput = 100*sin(pitchAngle*3.1415/180.0);
+                // Serial.println("up");
+                upInput = 100*cos(pitch*3.1415/180.0); //or just 100 (without pitch control)
+                forwardInput = 100*sin(pitch*3.1415/180.0);
                 
               } else if (ceilHeight < 75) {
-                Serial.println("down");
-                upInput = -100*cos(pitchAngle*3.1415/180.0);
-                forwardInput = -100*sin(pitchAngle*3.1415/180.0);
+                // Serial.println("down");
+                upInput = -100*cos(pitch*3.1415/180.0);
+                forwardInput = -100*sin(pitch*3.1415/180.0);
               } else {
                 upInput = 0;
                 forwardInput = 0;
@@ -334,8 +461,8 @@ void loop() {
          double yawPIDInput = 0.0;
          double deadband = 2.0; //To do
          
-         yawPIDInput = yawRatePID.calculate(yawInput, yawRate, 100);   
-         if (abs(yawInput-yawRate) < deadband) {
+         yawPIDInput = yawRatePID.calculate(yawInput, yawRateFilter.last, 100);   
+         if (abs(yawInput-yawRateFilter.last) < deadband) {
              yawPIDInput = 0;
          } else {
              yawPIDInput = tanh(yawPIDInput)*abs(yawPIDInput);
