@@ -50,23 +50,42 @@ void UDPComm::init() {
 }
 
 void UDPComm::establishComm(){
+    blimpID = getIPAddress();
+    String confirm = "BlimpID set to: " + blimpID;
+    Serial.println(confirm);
+    // Send initial heartbeat to basestation
+    send(managerID,"H","H");
+}
+
+String UDPComm::getIPAddress(){
+    String newIPAddr = WiFi.localIP().toString();
+    //String confirm = "IP Address Found: " + newIPAddr + ".";
+    //Serial.println(confirm);
+    return newIPAddr;
+}
+
+/*
+// DEPRECATED - use getIPAddress() instead
+void UDPComm::getBlimpID(){
     //Get Blimp ID
     Serial.println("Sending ID request");
-    blimpID = "N";
+    String newblimpID = "N";
     while (true) {
         readPackets();
         if (!packets[newBlimp].isEmpty()) {
-            blimpID = packetGetMessage(packets[newBlimp].extractBottom());
+            newblimpID = packetGetMessage(packets[newBlimp].extractBottom());
             break;
         }
         Serial.println("Sending ID request");
         send(managerID, flags[newBlimp], "N");
         delay(500);
     }
-    String confirm = "Blimp " + blimpID + " identified.";
+    String confirm = "Blimp " + newblimpID + " identified.";
     Serial.println(confirm);
     send(managerID,flags[debug],confirm);
+    return newblimpID;
 }
+*/
 
 //Message format: identifier+targetID+,+sourceID+:+flag+:+message
 //NewBlimp:       :)0,N:N:N
