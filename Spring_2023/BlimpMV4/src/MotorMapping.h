@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ESP32Servo.h>
+#include "Servo.h"
 #include "Arduino.h"
 #include "EMAFilter.h"
 

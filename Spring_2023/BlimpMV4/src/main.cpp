@@ -4,13 +4,14 @@
 #include "EMAFilter.h"
 #include "PID.h"
 #include "BlimpClock.h"
-#include "ESP32Servo.h"
+#include "Servo.h"
 #include "MotorMapping.h"
 #include "accelGCorrection.h"
 #include "BangBang.h"
 #include "baro_acc_kf.h"
 #include "gyro_ekf.h"
-
+#include "SerialData.h"
+#include "UDPComm.h"
 #include "Madgwick_Filter.h"
 
 
@@ -64,19 +65,25 @@ int targetColor = 2;
 //r 0, g 1, b 2
 
 //motor pins
-const int LMPIN = 26; // 26 is pin for Left motor object
-const int RMPIN =  27; // 27 is pin for Right motor object
-const int LSPIN = 14; //14 is pin for Left servo object
-const int RSPIN = 12; //12 is pin for Right servo object 
+const int LMPIN = 9; // 26 is pin for Left motor object
+const int RMPIN =  6; // 27 is pin for Right motor object
+const int LSPIN = 2; //14 is pin for Left servo object
+const int RSPIN = 4; //12 is pin for Right servo object 
 
 // Pinout
-#define 
+
+//msg variables
+String msgTemp;
+double lastMsgTime = -1.0;
+bool outMsgRequest = false;
 
 //servo objects/motor objects
 
 //motor->(pin,deadband,turn on,min,max)
 MotorMapping motors(LSPIN, RSPIN, LMPIN, RMPIN, 5, 50, 1000, 2000,0.3);
 
+//objects
+SerialData piData;
 BerryIMU_v3 BerryIMU;
 Madgwick_Filter madgwick;
 BaroAccKF kf;
@@ -115,6 +122,7 @@ PID yPos(0.5,0,0);
 BlimpClock udpClock;
 BlimpClock heartbeat;
 BlimpClock motorClock;
+UDPComm udp;
 
 //variables
 double feedbackData[FEEDBACK_BUF_SIZE];
@@ -158,9 +166,10 @@ void setup() {
   
   // put your setup code here, to run once:
   Serial.begin(115200);
+  Serial1.begin(115200);
 
   //UART Comm (OpenMV)
-  Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
+  Serial2.begin(115200);
   delay(1000);
   Serial.println("Color tracking program started");
 
@@ -173,17 +182,14 @@ void setup() {
         feedbackData[i] = 0;
     }
 
-    motorClock.setFrequency(400);
-    BerryIMU.BerryIMU_v3_Setup(); //problem
-    
+    motorClock.setFrequency(400);    
   
   //wait 2 seconds
   delay(2000);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  
+
   //reading Serial2 color coordinates (OpenMV) and pass them to PID
   if (Serial2.available()>0){
     char c = Serial2.read();
@@ -198,277 +204,262 @@ void loop() {
     }
   }
 
-float dt = micros()/MICROS_TO_SEC-lastSensorFastLoopTick;
+  //reading data from base station
+  if (udpClock.isReady() && udp.readPackets()) {
 
-  if (dt >= 1.0/FAST_SENSOR_LOOP_FREQ) {
-    lastSensorFastLoopTick = micros()/MICROS_TO_SEC;
+    // Retrieve inputs from packet
+    std::vector<String> inputs = udp.packetMoveGetInput();
 
-    //read sensor values and update madgwick
-    BerryIMU.IMU_read();
-    BerryIMU.IMU_Flip_Axis();  //BerryIMU.IMU_ROTATION(rotation);  Replace and test!
+    Serial.println("Test");
 
-    madgwick.Madgwick_Update(BerryIMU.gyr_rateXraw,
-                             BerryIMU.gyr_rateYraw,
-                             BerryIMU.gyr_rateZraw,
-                             BerryIMU.AccXraw,
-                             BerryIMU.AccYraw,
-                             BerryIMU.AccZraw);
+    //Check UDP packet is legit
+    if (udp.packetMove.indexOf('@') == -1 && udp.packetMove.indexOf('!') == -1 && udp.packetMove != "") {
+      
+      // ************************** IMU LOOP ************************** //
+      float dt = micros()/MICROS_TO_SEC-lastSensorFastLoopTick;
+      if (dt >= 1.0/FAST_SENSOR_LOOP_FREQ) {
+        lastSensorFastLoopTick = micros()/MICROS_TO_SEC;
 
-   //get orientation from madgwick
-    pitch = madgwick.pitch_final;
-    roll = madgwick.roll_final;
-    yaw = madgwick.yaw_final;
+        //read sensor values and update madgwick
+        BerryIMU.IMU_read();
+        BerryIMU.IMU_ROTATION(rotation);
 
-    //compute the acceleration in the barometers vertical reference frame
-    accelGCorrection.updateData(BerryIMU.AccXraw, BerryIMU.AccYraw, BerryIMU.AccZraw, pitch, roll);
+        madgwick.Madgwick_Update(BerryIMU.gyr_rateXraw,
+                                BerryIMU.gyr_rateYraw,
+                                BerryIMU.gyr_rateZraw,
+                                BerryIMU.AccXraw,
+                                BerryIMU.AccYraw,
+                                BerryIMU.AccZraw);
 
-    //run the prediction step of the vertical velecity kalman filter
-    kf.predict(dt);
-    // xekf.predict(dt);
-    // yekf.predict(dt);
-    gyroEKF.predict(dt);
+        //get orientation from madgwick
+        pitch = madgwick.pitch_final;
+        roll = madgwick.roll_final;
+        yaw = madgwick.yaw_final;
 
+        //compute the acceleration in the barometers vertical reference frame
+        accelGCorrection.updateData(BerryIMU.AccXraw, BerryIMU.AccYraw, BerryIMU.AccZraw, pitch, roll);
 
-    //pre filter accel before updating vertical velocity kalman filter
-    verticalAccelFilter.filter(-accelGCorrection.agz);
-
-    //update vertical velocity kalman filter acceleration
-    kf.updateAccel(verticalAccelFilter.last);
-
-    //update filtered yaw rate
-    yawRateFilter.filter(BerryIMU.gyr_rateZraw);
-
-    //perform gyro update
-    gyroEKF.updateGyro(BerryIMU.gyr_rateXraw*3.14/180, BerryIMU.gyr_rateYraw*3.14/180, BerryIMU.gyr_rateZraw*3.14/180);
-    gyroEKF.updateAccel(BerryIMU.AccXraw, BerryIMU.AccYraw, BerryIMU.AccZraw);
-    
-
-    // xekf.updateAccelx(-accelGCorrection.agx);
-    // xekf.updateGyroX(gyroEKF.pitchRate - gyroEKF.pitchRateB);
-    // xekf.updateGyroZ(BerryIMU.gyr_rateZraw);
-
-    // yekf.updateAccelx(-accelGCorrection.agy);
-    // yekf.updateGyroX(gyroEKF.rollRate - gyroEKF.rollRateB);
-    // yekf.updateGyroZ(BerryIMU.gyr_rateZraw);
-
-    
-    // Serial.print(">Z:");
-    // Serial.println(xekf.z);
-
-    // Serial.print(">Opt:");
-    // Serial.println(xekf.opt);
-
-    // Serial.print(">gyro x:");
-    // Serial.println(xekf.gyrox);
-
-    // Serial.print(">Ax:");
-    // Serial.println(xekf.ax);
-
-    // Serial.print(">Velocity:");
-    // Serial.println(xekf.v);
-
-     //print("Yrate", yawRateFilter.last);
-
-    //print("zVel", kf.v);
-
-    
-    // kal_vel.predict_vel();
-    // kal_vel.update_vel_acc(-accelGCorrection.agx/9.81, -accelGCorrection.agy/9.81);
-  }
-
-//update barometere at set barometere frequency
-  dt = micros()/MICROS_TO_SEC-lastBaroLoopTick;
-  if (dt >= 1.0/BARO_LOOP_FREQ) {
-    lastBaroLoopTick = micros()/MICROS_TO_SEC;
-
-    //get most current imu values
-    BerryIMU.IMU_read();
-    BerryIMU.IMU_Flip_Axis();  //BerryIMU.IMU_ROTATION(rotation);  Replace and test!
-    
-    //update kalman with uncorreced barometer data
-    kf.updateBaro(BerryIMU.alt);
+        //run the prediction step of the vertical velecity kalman filter
+        kf.predict(dt);
+        // xekf.predict(dt);
+        // yekf.predict(dt);
+        gyroEKF.predict(dt);
 
 
-    //compute the corrected height with base station baro data and offset
-    actualBaro = BerryIMU.alt - baseBaro + baroOffset.last;
+        //pre filter accel before updating vertical velocity kalman filter
+        verticalAccelFilter.filter(-accelGCorrection.agz);
 
-    // xekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
-    // yekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
-  }
+        //update vertical velocity kalman filter acceleration
+        kf.updateAccel(verticalAccelFilter.last);
 
-   
-    //update motors according to the inputs from the station/joysticks
-    //std::vector<String> inputs = udp.packetMoveGetInput();
-    //char t = udp.packetMoveGetInput()[0][0]; //state
-    //String targetEnemy = "";
-    //if ((float)udp.last_message_recieved <= (float)millis() - (float)5000) {
-    //  autonomousState = lost;
-    //} else if (t == 'A') {
-    //  autonomousState = autonomous;
-    //  targetEnemy = inputs[1];
-    //} else if (t == 'M'){
-    //  autonomousState = manual;
-    //  targetEnemy = inputs[5];
-    //}
-//
-    //if(targetEnemy == "R"){
-    //  targetColor = 0;
-    //}else if(targetEnemy == "G"){
-    //  targetColor = 1;
-    //}else if(targetEnemy == "B"){
-    //  targetColor = 2;
-    //}
-//
-    ////state machine
-    //if (autonomousState == manual){
-    //    if (motorClock.isReady()) {
-    //      //State Machine
-    //      //MANUAL
-    //      //Default
-    //      
-    //      forwardInput = udp.packetMoveGetInput()[4].toDouble();
-    //      yawInput = udp.packetMoveGetInput()[1].toDouble();
-    //      upInput = udp.packetMoveGetInput()[2].toDouble();
-//
-    //      //safegaurd: if motor reads any command that is greater than 1, shut the motor off!!!
-    //      if (abs(forwardInput) >1.0 || abs(yawInput)>1.0 || abs(upInput)>1.0){
-    //        motorsOff = true;
-    //        Serial.println("Invalid motor input!!!");
-    //      }
+        //update filtered yaw rate
+        yawRateFilter.filter(BerryIMU.gyr_rateZraw);
+
+        //perform gyro update
+        gyroEKF.updateGyro(BerryIMU.gyr_rateXraw*3.14/180, BerryIMU.gyr_rateYraw*3.14/180, BerryIMU.gyr_rateZraw*3.14/180);
+        gyroEKF.updateAccel(BerryIMU.AccXraw, BerryIMU.AccYraw, BerryIMU.AccZraw);
+
+        Serial.println(BerryIMU.AccXraw);
+        
+      } 
+
+      // ************************** BARO LOOP ************************** //
+      dt = micros()/MICROS_TO_SEC-lastBaroLoopTick;
+      if (dt >= 1.0/BARO_LOOP_FREQ) {
+        lastBaroLoopTick = micros()/MICROS_TO_SEC;
+
+        //get most current imu values
+        BerryIMU.IMU_read();
+        BerryIMU.IMU_ROTATION(rotation);
+        
+        //update kalman with uncorreced barometer data
+        kf.updateBaro(BerryIMU.alt);
+
+
+        //compute the corrected height with base station baro data and offset
+        actualBaro = BerryIMU.alt - baseBaro + baroOffset.last;
+
+        // xekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
+        // yekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
+      }
+
+      // ******************* PACKET RELATED LOGIC ******************* //
+      
+      //DEBUG SEE INPUTS
+      Serial.println("Inputs: ");
+      for (int i = 0; i < inputs.size(); i++)
+      {
+        Serial.print(inputs[i]);
+      }
+      Serial.print("\n");
+
+      // State Logic
+      char t = udp.packetMoveGetInput()[0][0];
+      String targetEnemy = "";
+      if ((float)udp.last_message_recieved <= (float)millis() - (float)5000) {
+        autonomousState = lost;
+      } else if (t == 'A') {
+        autonomousState = autonomous;
+        targetEnemy = inputs[1];
+      } else if (t == 'M'){
+        autonomousState = manual;
+        targetEnemy = inputs[5];
+      }
+
+      // Target Enemy Logic
+      if(targetEnemy == "R"){
+      targetColor = 0;
+      }else if(targetEnemy == "G"){
+        targetColor = 1;
+      }else if(targetEnemy == "B"){
+        targetColor = 2;
+      }
+
+      // ******************* STATE MACHINE ******************* //
+      // Manual
+      if (autonomousState == manual){
+        if (motorClock.isReady()) {
+          //State Machine
+          //MANUAL
+          //Default
+          
+          //stod() was toDouble()
+          forwardInput = atof(udp.packetMoveGetInput()[4].c_str());
+          yawInput = atof(udp.packetMoveGetInput()[1].c_str());
+          upInput = atof(udp.packetMoveGetInput()[2].c_str());
+
+          //safegaurd: if motor reads any command that is greater than 1, shut the motor off!!!
+          if (abs(forwardInput) >1.0 || abs(yawInput)>1.0 || abs(upInput)>1.0){
+            motorsOff = true;
+            Serial.println("Invalid motor input!!!");
+          }
             
-//            Serial.println(forwardInput);
-//            Serial.println(steerInput);
-//            Serial.println(upInput);
+          //Serial.println(forwardInput);
+          //Serial.println(steerInput);
+          //Serial.println(upInput);
            
           //map controller input to yaw rate
           //Serial.println(yawInput);
           upInput = 500*upInput;
           forwardInput = 500*forwardInput;
           yawInput = -yawInput*120;    //120 degrees per second
+
           //Serial.println(yawInput);
         }
+
+      // Autonomous
       } else if (autonomousState == autonomous) {
-      //AUTONOMOUS
-      //Serial.println("auto");
-      double outerLoopTime = millis() - lastOuterLoopTime;
-      if (outerLoopTime > (1.0/OUTERLOOP)*1000) {
-        lastOuterLoopTime = millis();
-        //Serial.println("Loop");
-        /*
-        //EXAMPLE
-        //print coordinates of the detection points
-        if (detections.size() == 3) {
-          for (int i = 0; i < 3; i++) {
-            if (i == 0) {
-              Serial.println("Red");
-            } else if (i == 1) {
-              Serial.println("Green");
-            } else {
-              Serial.println("Blue");
-            }
-            
-            if (detections[i].size() == 2 && abs(detections[i][0]) < 500) {
-              Serial.print("X: ");
-              Serial.print(detections[i][0]);
-              Serial.print("\tY: ");
-              Serial.println(detections[i][1]);
-            } else {
-              Serial.println();
-            }
+
+        //AUTONOMOUS
+        //Serial.println("auto");
+        double outerLoopTime = millis() - lastOuterLoopTime;
+
+        if (outerLoopTime > (1.0/OUTERLOOP)*1000) {
+          lastOuterLoopTime = millis();
+
+          //ultrasonic
+          Serial.print("Ceiling Height: ");
+          Serial.println(ceilHeight);
+        
+
+          //perform decisions
+          switch (state) {
+
+            //Search
+            case searching:
+              if (true) {
+                
+                yawInput = -20;   //turning rate while searching
+
+
+                //check if the height of the blimp is within this range (ft), adjust accordingly to fall in the zone 
+                if (ceilHeight > 120) {
+                  // Serial.println("up");
+                  upInput = 100*cos(pitch*3.1415/180.0); //or just 100 (without pitch control)
+                  forwardInput = 100*sin(pitch*3.1415/180.0);
+                  
+                } else if (ceilHeight < 75) {
+                  // Serial.println("down");
+                  upInput = -100*cos(pitch*3.1415/180.0);
+                  forwardInput = -100*sin(pitch*3.1415/180.0);
+                } else {
+                  upInput = 0;
+                  forwardInput = 0;
+                }
+                
+                //we see something o_O
+                if (detections.size() == 3 && detections[targetColor].size() == 2 && detections[targetColor][0] < 500) {
+                  state = approach;
+                }
+                
+              }
+
+            break;
+
+            // Approach
+            case approach:
+              if (detections.size() == 3 && detections[targetColor].size() == 2 && detections[targetColor][0] < 500) {
+                  yawInput = xPos.calculate(-detections[targetColor][0], 0, 100);
+                  upInput = yPos.calculate(-detections[targetColor][1], 0, 100);
+                  forwardInput = 150; //approaching thrust (300 as default)
+              } else {
+                state = searching;
+              }
+
+            break;
+
+            // Default Case
+            default:
+            Serial.println("Invalid State");
+            break;
           }
         }
-        */
-        //END OF EXAMPLE
-                
-        //ultrasonic
-        Serial.print("Ceiling Height: ");
-        Serial.println(ceilHeight);
-       
-
-        //perform decisions!!!!!!!!!
-        switch (state) {
-          case searching:
-            if (true) {
-              
-              yawInput = -20;   //turning rate while searching
-
-
-              //check if the height of the blimp is within this range (ft), adjust accordingly to fall in the zone 
-              if (ceilHeight > 120) {
-                // Serial.println("up");
-                upInput = 100*cos(pitch*3.1415/180.0); //or just 100 (without pitch control)
-                forwardInput = 100*sin(pitch*3.1415/180.0);
-                
-              } else if (ceilHeight < 75) {
-                // Serial.println("down");
-                upInput = -100*cos(pitch*3.1415/180.0);
-                forwardInput = -100*sin(pitch*3.1415/180.0);
-              } else {
-                upInput = 0;
-                forwardInput = 0;
-              }
-              
-              //we see something o_O
-              if (detections.size() == 3 && detections[targetColor].size() == 2 && detections[targetColor][0] < 500) {
-                state = approach;
-              }
-              
-            }
-          break;
-          case approach:
-            if (detections.size() == 3 && detections[targetColor].size() == 2 && detections[targetColor][0] < 500) {
-                yawInput = xPos.calculate(-detections[targetColor][0], 0, 100);
-                upInput = yPos.calculate(-detections[targetColor][1], 0, 100);
-                forwardInput = 150; //approaching thrust (300 as default)
-            } else {
-              state = searching;
-            }
-          break;
-          default:
-          Serial.println("Invalid State");
-          break;
-        }
-        
       }
+      
+      // ******************* MOTOR INPUTS ******************* //
+      double yawPIDInput = 0.0;
+      double deadband = 2.0; //To do
+      
+      yawPIDInput = yawRatePID.calculate(yawInput, yawRateFilter.last, 100);   
+      if (abs(yawInput-yawRateFilter.last) < deadband) {
+          yawPIDInput = 0;
+      } else {
+          yawPIDInput = tanh(yawPIDInput)*abs(yawPIDInput);
+      }
+      
+      // If lost, give zero command
+      if (autonomousState == lost) {
+        motors.update(0,0,0,0);
+      }
+
+      //turing the motors off for debugging for second case
+      if (autonomousState == lost)
+      {
+        motors.update(0,0,0,0);
+      }
+      else if (MOTORS_OFF == false && motorsOff == false) {
+        //Serial.println("after");
+        //Serial.println(yawInput);
+        //Serial.print(",");
+        //Serial.print(upInput);
+        //Serial.print(",");
+        //Serial.println(forwardInput);
+
+        motors.update(0, forwardInput, upInput, yawPIDInput);
+      } else {
+        motors.update(0,0,0,0);
+      }
+
+    // End Message Check
     }
-//        Serial.println("previous");
-//        Serial.println(yawInput);
-//        Serial.println("yaw rate");
-//        Serial.println(yawRate);
-         //PID controller (desired, setpoint, sampling rate)
-         //double pitch = pitchRatePID.calculate(0, pitchRate, 100);
-         
-         double yawPIDInput = 0.0;
-         double deadband = 2.0; //To do
-         
-         yawPIDInput = yawRatePID.calculate(yawInput, yawRateFilter.last, 100);   
-         if (abs(yawInput-yawRateFilter.last) < deadband) {
-             yawPIDInput = 0;
-         } else {
-             yawPIDInput = tanh(yawPIDInput)*abs(yawPIDInput);
-         }
-         
-        if (autonomousState == lost) {
-          motors.update(0,0,0,0);
-        }
-        //turing the motors off for debugging for second case
-        if (autonomousState == lost)
-        {
-          motors.update(0,0,0,0);
-        }
-        else if (MOTORS_OFF == false && motorsOff == false) {
-//          Serial.println("after");
-//          Serial.println(yawInput);
-//          Serial.print(",");
-//          Serial.print(upInput);
-//          Serial.print(",");
-//          Serial.println(forwardInput);
-//            motors.update(0,forwardInput,upInput,yawPIDInput);
-          motors.update(0, forwardInput, upInput, yawPIDInput);
-        } else {
-          motors.update(0,0,0,0);
-        }
+
+    // End UDP Clock
   }
+
+  //Clear Packet
+  udp.packetClear();
+
+  // End Main Loop
 }
 
 // process Serial message from the camera
@@ -562,3 +553,4 @@ void processSerial(String msg) {
   detections.push_back(green);
   detections.push_back(blue);
 }
+
