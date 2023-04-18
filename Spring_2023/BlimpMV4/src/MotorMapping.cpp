@@ -27,6 +27,7 @@ void MotorMapping::update(double pitch, double forward, double up, double yaw) {
   //calcs are in motor command domain that is shifted by -1500 so that zero throttle is the origin
   //yaw, up, and forward are bounded by -500 to 500;
 
+
   //bound combined motor commands
   if (up > 500) {
     up = 500;
@@ -182,9 +183,9 @@ void MotorMapping::update(double pitch, double forward, double up, double yaw) {
   magR = magR * 2;
   magL = magL * 2;
 
-    char msg[128];
-    snprintf(msg, 128, "magL=%0.2f, magR=%0.2f",magL, magR);
-    Serial.println(msg);
+    // char msg[128];
+    // snprintf(msg, 128, "magL=%0.2f, magR=%0.2f",magL, magR);
+    // Serial.println(msg);
 
   RServo.write(servoRFilter.filter(thetaR));
   LServo.write(servoLFilter.filter(thetaL));

@@ -53,7 +53,7 @@ void UDPComm::send(String message) {
 }
 
 void UDPComm::send(String targetID, String flag, String message) {
-    send(targetID + "," + blimpID + ":" + flag + ":" + message);
+    //send(targetID + "," + blimpID + ":" + flag + ":" + message);
 }
 
 bool UDPComm::readPackets() {

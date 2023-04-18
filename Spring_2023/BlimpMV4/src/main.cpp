@@ -210,8 +210,6 @@ void loop() {
     // Retrieve inputs from packet
     std::vector<String> inputs = udp.packetMoveGetInput();
 
-    Serial.println("Test");
-
     //Check UDP packet is legit
     if (udp.packetMove.indexOf('@') == -1 && udp.packetMove.indexOf('!') == -1 && udp.packetMove != "") {
       
@@ -233,6 +231,8 @@ void loop() {
 
         //get orientation from madgwick
         pitch = madgwick.pitch_final;
+        //Serial.println("PITCH:");
+        //Serial.println (pitch);
         roll = madgwick.roll_final;
         yaw = madgwick.yaw_final;
 
@@ -259,7 +259,7 @@ void loop() {
         gyroEKF.updateGyro(BerryIMU.gyr_rateXraw*3.14/180, BerryIMU.gyr_rateYraw*3.14/180, BerryIMU.gyr_rateZraw*3.14/180);
         gyroEKF.updateAccel(BerryIMU.AccXraw, BerryIMU.AccYraw, BerryIMU.AccZraw);
 
-        Serial.println(BerryIMU.AccXraw);
+        //Serial.println(BerryIMU.AccXraw);
         
       } 
 
@@ -284,54 +284,70 @@ void loop() {
       }
 
       // ******************* PACKET RELATED LOGIC ******************* //
-      
+
+      /*
       //DEBUG SEE INPUTS
       Serial.println("Inputs: ");
       for (int i = 0; i < inputs.size(); i++)
       {
         Serial.print(inputs[i]);
+        Serial.print(" ");
       }
       Serial.print("\n");
 
+      Serial.println(atof(inputs[1].c_str()));
+      */
+
       // State Logic
-      char t = udp.packetMoveGetInput()[0][0];
+      String t = inputs[0];
+      // Serial.println("State " + t);
       String targetEnemy = "";
-      if ((float)udp.last_message_recieved <= (float)millis() - (float)5000) {
-        autonomousState = lost;
-      } else if (t == 'A') {
+
+      if (t == "A") {
         autonomousState = autonomous;
         targetEnemy = inputs[1];
-      } else if (t == 'M'){
+      } else if (t == "M"){
+        // Serial.println("Bruh?");
         autonomousState = manual;
         targetEnemy = inputs[5];
+      } else {
+        autonomousState = lost;
       }
+
+      // Serial.println(autonomousState);
 
       // Target Enemy Logic
       if(targetEnemy == "R"){
-      targetColor = 0;
+        targetColor = 0;
       }else if(targetEnemy == "G"){
         targetColor = 1;
       }else if(targetEnemy == "B"){
         targetColor = 2;
       }
 
+      // Serial.print("Target Color: ");
+      // Serial.println(targetColor);
+
       // ******************* STATE MACHINE ******************* //
       // Manual
       if (autonomousState == manual){
+
         if (motorClock.isReady()) {
           //State Machine
           //MANUAL
           //Default
+
+          //Serial.println(udp.packetMoveGetInput()[2].c_str());
           
           //stod() was toDouble()
-          forwardInput = atof(udp.packetMoveGetInput()[4].c_str());
-          yawInput = atof(udp.packetMoveGetInput()[1].c_str());
-          upInput = atof(udp.packetMoveGetInput()[2].c_str());
+          forwardInput = atof(inputs[4].c_str());
+          yawInput = atof(inputs[1].c_str());
+          upInput = atof(inputs[2].c_str());
 
           //safegaurd: if motor reads any command that is greater than 1, shut the motor off!!!
           if (abs(forwardInput) >1.0 || abs(yawInput)>1.0 || abs(upInput)>1.0){
             motorsOff = true;
-            Serial.println("Invalid motor input!!!");
+            Serial.println("Invalid motor input!!!!!");
           }
             
           //Serial.println(forwardInput);
@@ -358,8 +374,8 @@ void loop() {
           lastOuterLoopTime = millis();
 
           //ultrasonic
-          Serial.print("Ceiling Height: ");
-          Serial.println(ceilHeight);
+          // Serial.print("Ceiling Height: ");
+          // Serial.println(ceilHeight);
         
 
           //perform decisions
@@ -374,12 +390,12 @@ void loop() {
 
                 //check if the height of the blimp is within this range (ft), adjust accordingly to fall in the zone 
                 if (ceilHeight > 120) {
-                  // Serial.println("up");
+                  //Serial.println("up");
                   upInput = 100*cos(pitch*3.1415/180.0); //or just 100 (without pitch control)
                   forwardInput = 100*sin(pitch*3.1415/180.0);
                   
                 } else if (ceilHeight < 75) {
-                  // Serial.println("down");
+                  //Serial.println("down");
                   upInput = -100*cos(pitch*3.1415/180.0);
                   forwardInput = -100*sin(pitch*3.1415/180.0);
                 } else {
@@ -546,7 +562,7 @@ void processSerial(String msg) {
   }
 
   ceilHeight = (double)splitData[3].toFloat();
-
+  Serial.println(ceilHeight);
 
   detections.clear();
   detections.push_back(red);
