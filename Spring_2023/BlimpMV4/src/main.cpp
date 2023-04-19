@@ -10,9 +10,9 @@
 #include "BangBang.h"
 #include "baro_acc_kf.h"
 #include "gyro_ekf.h"
-#include "SerialData.h"
 #include "UDPComm.h"
 #include "Madgwick_Filter.h"
+
 
 
 //this is the 3 feedbacks
@@ -20,10 +20,9 @@
 
 #define MOTORS_OFF false //used for debugging
 
-#define RXD2 16
-#define TXD2 17
-
 #define OUTERLOOP 10  //Hz
+
+#define HWSERIAL Serial2
 
 #define IDNAME(name) #name
 
@@ -83,7 +82,6 @@ bool outMsgRequest = false;
 MotorMapping motors(LSPIN, RSPIN, LMPIN, RMPIN, 5, 50, 1000, 2000,0.3);
 
 //objects
-SerialData piData;
 BerryIMU_v3 BerryIMU;
 Madgwick_Filter madgwick;
 BaroAccKF kf;
@@ -166,14 +164,13 @@ void setup() {
   
   // put your setup code here, to run once:
   Serial.begin(115200);
-  Serial1.begin(115200);
 
   //UART Comm (OpenMV)
-  Serial2.begin(115200);
-  delay(1000);
+  HWSERIAL.begin(115200);
   Serial.println("Color tracking program started");
-
+  delay(2000);
     //initializations
+    udp.init();
     udpClock.setFrequency(100);
     heartbeat.setFrequency(20);
 
@@ -189,17 +186,47 @@ void setup() {
 }
 
 void loop() {
-
   //reading Serial2 color coordinates (OpenMV) and pass them to PID
-  if (Serial2.available()>0){
-    char c = Serial2.read();
-    //Serial.print(c);
+  /*
+  if (HWSERIAL.available()) {
+    char c = HWSERIAL.read();
+    Serial.print(c);
     if (c !='!'){
       s += c; 
     } else {
+      //Serial.println(s);
       //parse string s
       processSerial(s);
       //clear string s
+      s = "";
+    }
+  }
+  */
+
+  // Funky serial reading protocol, this is neccessary due to some weird bugs with serial1 and serial2 clashing
+  String incomingString = "";  // initialize an empty string to hold the incoming data
+  char startDelimiter = '@';   // set the start delimiter to '@'
+  char endDelimiter = '!';     // set the end delimiter to '!'
+
+  // Clear Serial Buffers
+  Serial2.read();
+  Serial1.read();
+
+  while (Serial2.available()) {
+    if (Serial2.find(startDelimiter)) {
+      s = Serial2.readStringUntil(endDelimiter);
+      Serial.println(s);
+      Serial.println(s.length());
+
+      // Ensure no invalid characters or overlapping packets
+      if (s.indexOf('@') == -1 && s.indexOf('!') == -1) {
+        // Ensure the packet is of the right size
+        if (s.length() == 96){
+          processSerial(s);
+        }
+      }
+
+      // Reset s
       s = "";
     }
   }
@@ -209,6 +236,7 @@ void loop() {
 
     // Retrieve inputs from packet
     std::vector<String> inputs = udp.packetMoveGetInput();
+
 
     //Check UDP packet is legit
     if (udp.packetMove.indexOf('@') == -1 && udp.packetMove.indexOf('!') == -1 && udp.packetMove != "") {
@@ -307,7 +335,6 @@ void loop() {
         autonomousState = autonomous;
         targetEnemy = inputs[1];
       } else if (t == "M"){
-        // Serial.println("Bruh?");
         autonomousState = manual;
         targetEnemy = inputs[5];
       } else {
@@ -351,7 +378,7 @@ void loop() {
           }
             
           //Serial.println(forwardInput);
-          //Serial.println(steerInput);
+          //Serial.println(yawInput);
           //Serial.println(upInput);
            
           //map controller input to yaw rate
@@ -435,6 +462,8 @@ void loop() {
       // ******************* MOTOR INPUTS ******************* //
       double yawPIDInput = 0.0;
       double deadband = 2.0; //To do
+
+      Serial.println(state);
       
       yawPIDInput = yawRatePID.calculate(yawInput, yawRateFilter.last, 100);   
       if (abs(yawInput-yawRateFilter.last) < deadband) {
@@ -562,7 +591,7 @@ void processSerial(String msg) {
   }
 
   ceilHeight = (double)splitData[3].toFloat();
-  Serial.println(ceilHeight);
+  //Serial.println(ceilHeight);
 
   detections.clear();
   detections.push_back(red);
