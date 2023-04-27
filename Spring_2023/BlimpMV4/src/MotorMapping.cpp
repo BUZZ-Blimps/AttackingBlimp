@@ -189,9 +189,11 @@ void MotorMapping::update(double pitch, double forward, double up, double yaw) {
 
   RServo.write(servoRFilter.filter(thetaR));
   LServo.write(servoLFilter.filter(thetaL));
+
+  delay(50);
+  
   RMotor.write(this->motorCom(magR));
   LMotor.write(this->motorCom(magL));
-  
 }
 
 void MotorMapping::writeLServo(double angle) {

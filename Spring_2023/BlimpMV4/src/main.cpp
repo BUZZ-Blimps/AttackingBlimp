@@ -114,7 +114,7 @@ PID pitchRatePID(2.4,0,0);
 //adjust  these for Openmv dont change the middle zeros
 PID xPos(0.25,0,0);
 
-PID yPos(0.5,0,0);
+PID yPos(0.4,0,0);
 
 //WIFI objects
 BlimpClock udpClock;
@@ -416,12 +416,12 @@ void loop() {
 
 
                 //check if the height of the blimp is within this range (ft), adjust accordingly to fall in the zone 
-                if (ceilHeight > 120) {
+                if (ceilHeight < 110) {
                   //Serial.println("up");
                   upInput = 100*cos(pitch*3.1415/180.0); //or just 100 (without pitch control)
                   forwardInput = 100*sin(pitch*3.1415/180.0);
                   
-                } else if (ceilHeight < 75) {
+                } else if (ceilHeight > 200) {
                   //Serial.println("down");
                   upInput = -100*cos(pitch*3.1415/180.0);
                   forwardInput = -100*sin(pitch*3.1415/180.0);
@@ -444,7 +444,7 @@ void loop() {
               if (detections.size() == 3 && detections[targetColor].size() == 2 && detections[targetColor][0] < 500) {
                   yawInput = xPos.calculate(-detections[targetColor][0], 0, 100);
                   upInput = yPos.calculate(-detections[targetColor][1], 0, 100);
-                  forwardInput = 150; //approaching thrust (300 as default)
+                  forwardInput = 350; //approaching thrust (300 as default)
               } else {
                 state = searching;
               }
