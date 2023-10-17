@@ -4,6 +4,8 @@
 
 **Teensy-ESP01 Message Protocol**:
 - Use character ```#``` as serial message delimiter
+- Teensy tells ESP to initialize UDP connection, until ESP confirms connection to Teensy
+    - "I###.###.#.###:####" = "I" + [IP address] + ":" + [port]
 
 **Teensy-ESP01-Bridge Message Protocol**:
 - Initializing a connection
