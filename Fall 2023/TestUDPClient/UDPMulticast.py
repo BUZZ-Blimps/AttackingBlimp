@@ -4,6 +4,8 @@ from threading import Thread
 import time
 import select
 
+# UDP tutorial: https://wiki.python.org/moin/UdpCommunication
+
 class UDPHelper:
     def __init__(self):
         self.IP = "192.168.0.200"
@@ -16,10 +18,14 @@ class UDPHelper:
         print("Initialized UDP socket.")
 
         self.looping = False
+        self.callback = None
 
     def open(self):
         self.thread = Thread(target=self.loopListen)
         self.thread.start()
+    
+    def setCallback(self, callback):
+        self.callback = callback
 
     def loopListen(self):
         time.sleep(1)
@@ -46,6 +52,14 @@ class UDPHelper:
             if (inString[0:2] == ":)"):
                 inString = inString[2:]
                 print("Received message \"",inString,"\" from ",address,".",sep='')
+                try:
+                    val = float(inString)
+                    if self.callback is not None:
+                        self.callback(val)
+                        print(type(self.callback))
+                except ValueError:
+                    #print("Not a float lmao")
+                    pass
 
     def send(self, targetAddress, message):
         message = ":)" + message

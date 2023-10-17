@@ -68,7 +68,8 @@ String total = "";
 void loop() {
 
   if(heartbeat.isReady()){
-    String message = "Hi, from ESP! " + String(millis()/1000);
+    //String message = "Hi, from ESP! " + String(millis()/1000);
+    String message = String(millis());
     send(message);
     Serial.print("Just UDP-sent \"");
     Serial.print(message);
