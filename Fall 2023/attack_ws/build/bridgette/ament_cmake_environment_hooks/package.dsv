@@ -1,0 +1,4 @@
+source;share/bridgette/local_setup.bash
+source;share/bridgette/local_setup.dsv
+source;share/bridgette/local_setup.sh
+source;share/bridgette/local_setup.zsh
