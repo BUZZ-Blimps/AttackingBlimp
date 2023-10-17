@@ -10,7 +10,7 @@ Steps:
 2. In Arduino IDE, select port (/dev/ttyUSB#) and board (Generic ESP8266 Module)
   - To install board support:
     - File > Preferences > Additional Boards Manager, copy in:
-      ```https://dl.espressif.com/dl/package_esp32_index.json, http://arduino.esp8266.com/stable/package_esp8266com_index.json```
+```https://dl.espressif.com/dl/package_esp32_index.json, http://arduino.esp8266.com/stable/package_esp8266com_index.json```
     - Tools > Board > Boards Manager, install esp8266
 3. Upload code!
 
@@ -45,5 +45,6 @@ platform = espressif8266
 board = esp01
 framework = arduino
 upload_resetmethod = nodemcu
+monitor_speed = 115200
 ```
 4. Upload code!
