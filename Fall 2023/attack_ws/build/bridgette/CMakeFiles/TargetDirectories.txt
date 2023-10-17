@@ -1,9 +1,0 @@
-/home/corelab-laptop2/GitHub/AttackingBlimp/Fall 2023/attack_ws/build/bridgette/CMakeFiles/install/strip.dir
-/home/corelab-laptop2/GitHub/AttackingBlimp/Fall 2023/attack_ws/build/bridgette/CMakeFiles/install/local.dir
-/home/corelab-laptop2/GitHub/AttackingBlimp/Fall 2023/attack_ws/build/bridgette/CMakeFiles/install.dir
-/home/corelab-laptop2/GitHub/AttackingBlimp/Fall 2023/attack_ws/build/bridgette/CMakeFiles/list_install_components.dir
-/home/corelab-laptop2/GitHub/AttackingBlimp/Fall 2023/attack_ws/build/bridgette/CMakeFiles/rebuild_cache.dir
-/home/corelab-laptop2/GitHub/AttackingBlimp/Fall 2023/attack_ws/build/bridgette/CMakeFiles/edit_cache.dir
-/home/corelab-laptop2/GitHub/AttackingBlimp/Fall 2023/attack_ws/build/bridgette/CMakeFiles/test.dir
-/home/corelab-laptop2/GitHub/AttackingBlimp/Fall 2023/attack_ws/build/bridgette/CMakeFiles/bridgette_uninstall.dir
-/home/corelab-laptop2/GitHub/AttackingBlimp/Fall 2023/attack_ws/build/bridgette/CMakeFiles/uninstall.dir
