@@ -2,7 +2,7 @@
 
 #include <vector>
 #include "Arduino.h"
-#include "String.h"
+//#include "String.h"
 
 class SerialData {
     public:

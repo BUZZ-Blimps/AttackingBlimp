@@ -10,7 +10,7 @@
 #include "BangBang.h"
 #include "baro_acc_kf.h"
 #include "gyro_ekf.h"
-#include "UDPComm.h"
+#include "SerialComm.h"
 #include "Madgwick_Filter.h"
 
 
@@ -163,7 +163,9 @@ void processSerial(String msg);
 void setup() {
   
   // put your setup code here, to run once:
+  Serial1.begin(115200);
   Serial.begin(115200);
+  return;
 
   //UART Comm (OpenMV)
   HWSERIAL.begin(115200);
@@ -185,7 +187,31 @@ void setup() {
   delay(2000);
 }
 
+String total = "";
+
 void loop() {
+
+  
+  String message = "Hello ESP-01";
+
+  Serial1.print(message);
+  Serial1.print(millis()/1000);
+  Serial1.print("#");
+
+    while(Serial1.available() > 0){
+    char current = Serial1.read();
+    if(current != '#'){
+      total += current;
+    }else{
+      String message = total;
+      total = "";
+      Serial.println(message);
+    }
+  }
+  delay(500);
+  Serial.println("hi");
+  return;
+
   //reading Serial2 color coordinates (OpenMV) and pass them to PID
   /*
   if (HWSERIAL.available()) {
@@ -323,7 +349,12 @@ void loop() {
       }
       Serial.print("\n");
 
-      Serial.println(atof(inputs[1].c_str()));
+      Serial.println(atof(inputs[1].c_str()));void loop(){
+    String message = "Hello ESP-01";
+    Serial.print(message);
+    Serial.print(millis()/1000);
+    Serial.print("#");
+}
       */
 
       // State Logic
