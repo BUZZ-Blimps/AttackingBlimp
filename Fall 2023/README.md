@@ -39,11 +39,11 @@ Steps:
 1. Plug ESP01 into ESP01 Programmer into USB drive
 2. Create/open a PlatformIO project with "esp8266 board support"
 3. Specify upload parameters in platformio.ini
-   ```
+  ```
   [env:esp01]
   platform = espressif8266
   board = esp01
   framework = arduino
   upload_resetmethod = nodemcu
-   ```
+  ```
 3. Upload code!
