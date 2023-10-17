@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "BlimpClock.h"
 
-
 void BlimpClock::setFrequency(double frequency) {
 	lastTime = 0;
 	milliDelay = round(1000 / frequency);

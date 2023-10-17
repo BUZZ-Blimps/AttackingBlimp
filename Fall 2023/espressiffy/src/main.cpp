@@ -35,7 +35,8 @@ BlimpClock UdpClock;
 BlimpClock heartbeat;
 void setup() {
   Serial.begin(115200);  
-  
+  return;
+
   // Set clock speed
   UdpClock.setFrequency(50);  
   
@@ -61,7 +62,26 @@ void setup() {
   heartbeat.setFrequency(20);
 }
 
+String total = "";
+
 void loop() {
+  while(Serial.available() > 0){
+    char current = Serial.read();
+    if(current != '#'){
+      total += current;
+    }else{
+      String message = total;
+      total = "";
+
+      Serial.print("Hi, ESP received \"");
+      Serial.print(message);
+      Serial.print("\".");
+      Serial.print("#");
+    }
+  }
+  return;
+
+
   // Check if there is a packet available
   if (UdpClock.isReady()) {
     readPackets();
