@@ -3,15 +3,17 @@
 int ledPin = 1;
 
 void setup() {
-  // put your setup code here, to run once:
   pinMode(ledPin, OUTPUT);
+  Serial.begin(115200);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  Serial.print("HIGH#");
+  delay(200);
   digitalWrite(ledPin, HIGH);
   delay(500);
+  Serial.print("LOW#");
+  delay(200);
   digitalWrite(ledPin, LOW);
   delay(500);
 }
-
