@@ -1,5 +1,16 @@
 # Protocol Documentation for UDP-ROS2 Bridge
 
+**MISC**:
+- UDPHandler telling ESP to create UDP connection:
+    - "C" + [2 digit number of length of wifi_ssid] + [wifi_ssid] + [2 digit number of length of wifi_password] + [wifi_password] + [2 digit number of length of bridgeIP] + [bridgeIP] + [1 digit number of length of UDP_port] + [UDP_port]
+- Teensy msg to esp starting with "E": contains UDP connection info
+- ESP msg to Teensy starting with "E": single digit boolean for UDP connection status (0=not connected, 1=connected)
+- Teensy -> ESP Flags
+    - C: UDP connection data
+    - M: UDP message
+- ESP -> Teensy Flags
+    - C: UDP connection data
+
 **Teensy <-Serial-> ESP01 <-UDP-> Bridge <-ROS2-> Basestation**
 
 **Teensy-ESP01 Message Protocol**:

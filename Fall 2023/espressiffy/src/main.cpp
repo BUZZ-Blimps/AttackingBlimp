@@ -7,16 +7,20 @@
 void loop();
 void send(String message);
 void send(String targetID, String flag, String message);
-bool readPacket(String* packet);
+bool readUDP(String* message);
 void readPackets();
 String packetGetFlag(String packet);
 String packetGetMessage(String packet);
 void setup();
 
-const char* ssid = "COREBlimp";
-const char* password = "jollypiano265";
+//const char* ssid = "COREBlimp";
+//const char* password = "jollypiano265";
 
-IPAddress UDPAddress = IPAddress(192, 168, 0, 200);
+const char* ssid = "Adams iphone";
+const char* password = "eeeeeeee";
+
+//IPAddress UDPAddress = IPAddress(192, 168, 0, 200);
+IPAddress UDPAddress = IPAddress(172, 20, 10, 14);
 const int UDPPort = 5005;
 
 int numMessageTypes = 4;
@@ -43,17 +47,18 @@ void setup() {
   UDPClock.setFrequency(50);  
   
   // Connect to WIFI
-  Serial.printf("Connecting to %s ", ssid);
+  Serial.printf("Connecting to %s#", ssid);
   WiFi.begin(ssid, password);  
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
-    Serial.print(".");
+    Serial.print(".#");
   }
  
-  Serial.println(" connected");
-  Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), UDPPort); 
-  UDP.beginMulticast(WiFi.localIP(), UDPAddress, UDPPort);
+  Serial.print("Connected!#");
+  Serial.printf("Now listening at IP %s, UDP port %d#", WiFi.localIP().toString().c_str(), UDPPort); 
+  //UDP.beginMulticast(WiFi.localIP(), UDPAddress, UDPPort);
+  UDP.begin(UDPPort);
   UDP.flush();
   
   // Establish ID:
@@ -66,16 +71,8 @@ void setup() {
 String total = "";
 
 void loop() {
-
   if(heartbeat.isReady()){
-    //String message = "Hi, from ESP! " + String(millis()/1000);
-    String message = String(millis());
-    send(message);
-    Serial.print("Just UDP-sent \"");
-    Serial.print(message);
-    Serial.print("\" from ");
-    Serial.print(localIP);
-    Serial.println(".");
+    send("Hi from ESP.");
   }
 
   while(Serial.available() > 0){
@@ -86,12 +83,17 @@ void loop() {
       String message = total;
       total = "";
 
-      Serial.print("Hi, ESP received \"");
-      Serial.print(message);
-      Serial.print("\".");
-      Serial.print("#");
+      send(message);
     }
   }
+
+  String message;
+  while(readUDP(&message)){
+    Serial.print("ESP received from UDP: \"");
+    Serial.print(message);
+    Serial.print("\".#");
+  }
+
   return;
 
 
@@ -111,15 +113,26 @@ void send(String message) {
     String configuredOut = identifier + message;
     UDP.print(configuredOut);
     UDP.endPacket();
+    Serial.print("Sending over UDP: \"");
+    Serial.print(message);
+    Serial.print("\".#");
 }
 
-bool readPacket(String* packet){
+bool readUDP(String* message){
     int parsed = UDP.parsePacket();    
     int avail = UDP.available();
-
-    if (avail < 1) return false; 
+    if(parsed != 0 || avail != 0){
+      Serial.print("Parsed (");
+      Serial.print(parsed);
+      Serial.print(")   Avail (");
+      Serial.print(avail);
+      Serial.print(")#");
+    }
     
-    //If nothing available    
+
+    //If nothing available
+    if (avail < 1) return false;
+
     char buffChar;
     char buff[avail + 1];
     
@@ -128,28 +141,21 @@ bool readPacket(String* packet){
         buff[i] = buffChar;
     }
     
-    UDP.flush();    buff[avail] = '\0';
-    String input = String(buff);    bool valid = true;
+    UDP.flush();    
+    buff[avail] = '\0';
+    String input = String(buff);
     
-    if (input.substring(0, identifier.length()) != identifier) valid = false;
-    
-    input = input.substring(identifier.length());
-    int comma = input.indexOf(',');
-    
-    if (comma == -1 || input.substring(0, comma) != localIP) valid = false;
-        if (valid) {
-        *packet = input;
+    if (input.substring(0, identifier.length()) != identifier){
+      return false;
+    }else{
+      *message = input;
+      return true;
     }
-    else {
-        *packet = "";
-    }
-
-    return true;
 }
 
 void readPackets() {
     String packet = "";
-    while (readPacket(&packet)) {
+    while (readUDP(&packet)) {
       // Skip if empty
       if (packet == "") {
         return;

@@ -21,27 +21,42 @@ void setup(){
 
 }
 
-String total = "";
+String totalSerial = "";
+String totalSerial1 = "";
+float lastSent = 0;
 
 void loop(){
-  
-  String message = "Hello ESP-";
+  while(Serial.available() > 0){
+    String message = Serial.readString();
+    //Received from Serial (Computer)
+    Serial1.print(message);
+    Serial1.print("#");
+    Serial.print("Sent to ESP: \"");
+    Serial.print(message);
+    Serial.println("\".");
+  }
 
-  Serial1.print(message);
-  Serial1.print(millis()/1000);
-  Serial1.print("#");
-
-    while(Serial1.available() > 0){
+  while(Serial1.available() > 0){
     char current = Serial1.read();
     if(current != '#'){
-      total += current;
+      totalSerial1 += current;
     }else{
-      String message = total;
-      total = "";
-      Serial.println(message);
+      String message = totalSerial1;
+      totalSerial1 = "";
+      //Received from Serial1 (ESP)
+      Serial.print("Received from ESP: \"");
+      Serial.print(message);
+      Serial.println("\".");
     }
   }
-  delay(1000);
+
+  float currentTime = millis()/1000.0;
+  if(currentTime - lastSent > 1.0){
+    lastSent = currentTime;
+    Serial.print("Hi! (");
+    Serial.print(currentTime);
+    Serial.println(")");
+  }
 
 }
 
