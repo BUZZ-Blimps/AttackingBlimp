@@ -41,6 +41,7 @@ class ROSHandler{
 
         const char flag_subscribe = 'S';
         const char flag_publish = 'P';
+        const int maxNumDigits_TopicNameLength = 2;
 
         std::map<String,function<void(String)>> map_genericCallbackFunctions;
         UDPHandler udpHandler;

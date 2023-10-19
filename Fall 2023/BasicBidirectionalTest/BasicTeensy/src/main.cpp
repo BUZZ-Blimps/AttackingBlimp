@@ -1,21 +1,19 @@
 #include <Arduino.h>
-#include "SerialHandler.h"
+#include "ROSHandler.h"
 
-SerialHandler espHandler;
+ROSHandler rosHandler;
+
+void callback(String message){
+  Serial.print("Received topic message: \"");
+  Serial.print(message);
+  Serial.println("\".");
+}
 
 void setup(){
-
+  rosHandler.Init();
+  rosHandler.SubscribeTopic_String("testTopic", callback);
 }
-float lastSent = 0; 
 
 void loop(){
-  espHandler.ParseMessages();
-
-  float currentTime = millis()/1000.0;
-  if(currentTime - lastSent > 1.0){
-    lastSent = currentTime;
-    Serial.print("Hi! (");
-    Serial.print(currentTime);
-    Serial.println(")");
-  }
+  rosHandler.Update();
 }

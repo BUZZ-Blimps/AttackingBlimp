@@ -47,10 +47,36 @@ void ROSHandler::PublishTopic_Float64(String topicName, float value){
 
 }
 
+void ROSHandler::callback_UDPRecvMsg(String message){
+    char messageFlag = message.charAt(0);
+    message = message.substring(1);
+    if(messageFlag == flag_publish){
+        // Received published topic
+        // Parse UDP message into topicName, topicType, topicData
+        int topicNameLength = message.substring(0,maxNumDigits_TopicNameLength).toInt();
+        int topicNameIndex = maxNumDigits_TopicNameLength;
+        int topicTypeIndex = topicNameIndex + topicNameLength;
+        int topicDataIndex = topicTypeIndex + 1;
+        
+        String topicName = message.substring(topicNameIndex,topicTypeIndex);
+        MessageType topicType = static_cast<MessageType>(message.substring(topicTypeIndex,topicDataIndex).toInt());
+        String topicData = message.substring(topicDataIndex);
+
+        // Find and call callback function
+        String topicID = topicName + "-" + String(topicType);
+        auto iter = map_genericCallbackFunctions.find(topicID);
+        if(iter != map_genericCallbackFunctions.end()){
+            // Callback function exists!
+            function<void(String)> genericCallback = iter->second;
+            genericCallback(topicData);
+        }
+    }
+}
+
 
 void ROSHandler::SubscribeTopic(String topicName, MessageType topicType, function<void(String)> genericCallback){
-    String topicIdentifier = topicName + "-" + String(topicType);
-    map_genericCallbackFunctions[topicIdentifier] = genericCallback;
+    String topicID = topicName + "-" + String(topicType);
+    map_genericCallbackFunctions[topicID] = genericCallback;
 }
 
 void ROSHandler::ParseTopic_Float64MultiArray(function<void(int, float*)> callback, String data){
