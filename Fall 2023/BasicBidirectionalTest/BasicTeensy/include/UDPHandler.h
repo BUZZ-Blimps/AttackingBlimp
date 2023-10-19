@@ -2,6 +2,9 @@
 
 #include <Arduino.h>
 #include "SerialHandler.h"
+#include <functional>
+
+using namespace std;
 
 class UDPHandler{
     public:
@@ -9,11 +12,11 @@ class UDPHandler{
         void Update();
         void SendUDP(String message);
 
-        void callback_SerialRecvMsg(String message);
-        void callback_SerialConnect();
-        void callback_SerialDisconnect();
+        function<void(String)> callback_UDPRecvMsg;
 
     private:
+        void callback_SerialRecvMsg(String message);
+        
         String StringLength(String variable, int numDigits);
 
         // ========== Connection parameters ==========

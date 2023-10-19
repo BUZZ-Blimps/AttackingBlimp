@@ -1,7 +1,12 @@
 #include <Arduino.h>
 #include "UDPHandler.h"
+#include <functional>
+
+using namespace std;
+using namespace std::placeholders;
 
 void UDPHandler::Init(){
+    serialHandler.callback_SerialRecvMsg = bind(&UDPHandler::callback_SerialRecvMsg, this, _1);
     serialHandler.Init();
 }
 
@@ -15,9 +20,10 @@ void UDPHandler::SendUDP(String message){
 
 void UDPHandler::callback_SerialRecvMsg(String message){
     char messageFlag = message.charAt(0);
+    message = message.substring(1);
     if(messageFlag == flag_UDPConnectionData){
         // UDP connection status
-        bool connectedToUDP = (message.charAt(1) == '1');
+        bool connectedToUDP = (message.charAt(0) != '0');
         if(!connectedToUDP){
             // No active UDP connection
             // Send UDP connection to ESP
@@ -31,16 +37,8 @@ void UDPHandler::callback_SerialRecvMsg(String message){
             // There is an active UDP connection
         }
     }else if(messageFlag == flag_UDPMessage){
-        
+        callback_UDPRecvMsg(message);
     }
-}
-
-void UDPHandler::callback_SerialConnect(){
-
-}
-
-void UDPHandler::callback_SerialDisconnect(){
-
 }
 
 String UDPHandler::StringLength(String variable, int numDigits){

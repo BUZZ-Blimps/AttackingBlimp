@@ -1,6 +1,8 @@
 #pragma once
 #include <Arduino.h>
-#include "UDPHandler.h"
+#include <functional>
+
+using namespace std;
 
 class SerialHandler{
     public:
@@ -8,12 +10,19 @@ class SerialHandler{
         void Update();
         void SendSerial(char flag, String message);
 
-        UDPHandler udpHandler;
+        function<void(String)> callback_SerialRecvMsg;
+        function<void()> callback_SerialConnect;
+        function<void()> callback_SerialDisconnect;
 
     private:
         void ParseMessages();
         void ParseMessage(String message);
+        void SendMessages();
         void RecordESPHearbeat();
+
+        const int bytesPerMessage = 20;
+        const float messagesPerSecond = 100; // [Hz]
+        const float microsPerSecond = 1000000; // [us/s]
 
         const float timeout_serial = 1; // [s]
         const char delimiter_serial = '#';
@@ -21,6 +30,8 @@ class SerialHandler{
         // ========== Variables ==========
         bool connectedToESP = false;
         float lastHeartbeatMillis = 0; // [ms]
-        String totalSerial1 = "";
+        String bufferSerial1_in = "";
+        String bufferSerial1_out = "";
+        float lastMessageOutMicros = 0; // [us]
 
 };

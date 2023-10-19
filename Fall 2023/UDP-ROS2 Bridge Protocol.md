@@ -10,6 +10,11 @@
     - M: UDP message
 - ESP -> Teensy Flags
     - C: UDP connection data
+- Teensy -> Bridge Flags
+    - S: list of subscribed topics
+    - P: a published topic with its value
+- Bridge -> Teensy Flags
+    - P: a published topic with its value
 
 **Teensy <-Serial-> ESP01 <-UDP-> Bridge <-ROS2-> Basestation**
 
