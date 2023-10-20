@@ -2,6 +2,7 @@ from UDPHelper import UDPHelper
 from BlimpNode import BlimpNode
 from time import time
 from NonBlockingTimer import NonBlockingTimer
+from functools import partial
 
 
 class Bridge:
@@ -20,23 +21,63 @@ class Bridge:
         self.flag_subscribe = 'S'
         self.flag_publish = 'P'
 
-        self.timer_debugACK = NonBlockingTimer(frequency=5)
+        self.startTime = time()
+        self.timeout_blimpNodeHeartbeat = 3 # [s]
+
+        self.timer_printBlimps = NonBlockingTimer(frequency=1)
+    
+    def __del__(self):
+        self.udpHelper.close()
+    
+    def close(self):
+        self.__del__()
 
     def Update(self):
-        if self.timer_debugACK.isReady():
-            self.udpHelper.send("172.20.10.2", "ACK")
+        currentTime = time()
+
+        # Check for timed-out blimps and delete node
+        blimpNodeIPsToRemove = []        
+        for IP in self.map_IP_BlimpNode.keys():
+            blimpNode = self.map_IP_BlimpNode[IP]
+            if currentTime - blimpNode.lastHeartbeat >= self.timeout_blimpNodeHeartbeat:
+                # Time out has occured, mark node for deletion
+                blimpNodeIPsToRemove.append(IP)
+        # Actually delete nodes (can't iterate through map AND delete elements of map at same time)
+        for IP in blimpNodeIPsToRemove:
+            blimpNode = self.map_IP_BlimpNode.pop(IP)
+            blimpNode.destroy_node()
+            print("Time-out detected of node (",blimpNode.name,")",sep='')
+        
+        # Print list of currently detected blimps
+        if self.timer_printBlimps.isReady():
+            elapsedTime = round(currentTime - self.startTime,2)
+            print("(",elapsedTime,"s) - ",len(self.map_IP_BlimpNode.keys())," blimp(s) connected.",sep='')
+            for IP in self.map_IP_BlimpNode.keys():
+                blimpNode = self.map_IP_BlimpNode[IP]
+                print("\tBlimp ",blimpNode.name," (",IP,")",sep='')
+                if len(blimpNode.map_topicName_subscriber.keys()) > 0:
+                    print("\t\t Subscribed to: ",end='')
+                    for topicName in blimpNode.map_topicName_subscriber.keys():
+                        print(topicName,", ",sep='',end='')
+                    print()
+                if len(blimpNode.map_topicName_publisher.keys()) > 0:
+                    print("\t\t Publishing: ",end='')
+                    for topicName in blimpNode.map_topicName_publisher.keys():
+                        print(topicName,", ",sep='',end='')
+                    print()
 
     def callback_UDPRecvMsg(self, IP, message):
-        return
         if IP not in self.map_IP_BlimpName:
             return
         blimpName = self.map_IP_BlimpName[IP]
 
         if IP not in self.map_IP_BlimpNode:
             # Blimp not previously registered
-            self.map_IP_BlimpNode[IP] = BlimpNode(IP, blimpName, self)
+            func_sendTopicToBlimp = partial(self.sendTopicToBlimp, self)
+            self.map_IP_BlimpNode[IP] = BlimpNode(IP, blimpName, func_sendTopicToBlimp)
         
         blimpNode = self.map_IP_BlimpNode[IP]
+        blimpNode.lastHeartbeat = time()
 
         flag = message[0:1]
         message = message[1:]

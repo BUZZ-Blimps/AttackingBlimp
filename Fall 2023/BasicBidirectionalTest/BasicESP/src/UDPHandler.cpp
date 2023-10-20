@@ -51,7 +51,7 @@ void UDPHandler::SendUDP(String message){
     String configuredOut = identifier + message;
     int b = UDP.write(configuredOut.c_str(),configuredOut.length());
     int c = UDP.endPacket();
-    PrintSerialDebug("MessageToSnap: " + message + ", a=" + a + ", b=" + b + ", c=" + c);
+    //PrintSerialDebug("UDPMessage: " + message + ", a=" + a + ", b=" + b + ", c=" + c);
 }
 
 bool UDPHandler::checkWifiConnection(){

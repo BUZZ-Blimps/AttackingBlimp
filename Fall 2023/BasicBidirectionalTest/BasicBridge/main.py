@@ -2,6 +2,8 @@ from UDPHelper import UDPHelper
 import rclpy
 from rclpy.node import Node
 from Bridge import Bridge
+import traceback
+import time
 
 from std_msgs.msg import String
 
@@ -9,7 +11,6 @@ class Node_Pub(Node):
     def __init__(self):
         super().__init__('minimal_publisher')
         self.publisher = self.create_publisher(String, 'TeensyValue', 1)
-        print(type(self.publisher))
         self.timerPeriod = 0.2
         self.timer = self.create_timer(self.timerPeriod, self.callback_timer)
         self.udpHelper = UDPHelper()
@@ -29,29 +30,31 @@ class Node_Pub(Node):
 
 def main(args=None):
     rclpy.init(args=args)
+    bridge = Bridge()
 
-    nodePub = Node_Pub()
-    rclpy.spin(nodePub)
-    #bridge = Bridge()
+    error_exception = None
+    error_traceback = None
 
-    #while True:
-        #bridge.Update()
+    try:
+        while rclpy.ok():
+            bridge.Update()
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        error_exception = e
+        error_traceback = traceback.format_exc()
 
+    bridge.close()
     rclpy.shutdown()
 
-    """
-
-    global udpHelper
-    udpHelper = UDPHelper()
-
-
-    udpHelper.open()
-    udpHelper.setCallback(nodePub.publishValue)
-
-    rclpy.spin(nodePub)
-
-    rclpy.shutdown()
-    """
+    if error_exception is not None:
+        time.sleep(1)
+        print()
+        print()
+        print("========== ERROR CAUGHT ==========")
+        print()
+        print("Exception:", error_exception)
+        print(error_traceback)
 
 if __name__ == "__main__":
     main()

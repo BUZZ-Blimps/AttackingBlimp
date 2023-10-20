@@ -13,8 +13,10 @@ class BlimpNode(Node):
         self.name = name
         self.func_sendTopicToBlimp = func_sendTopicToBlimp
 
-        self.map_topicName_subscriber: dict[str,Publisher] = {}
-        self.map_topicName_publisher = {}
+        self.lastHeartbeat = 0 # [s]
+
+        self.map_topicName_subscriber: dict[str,Subscription] = {}
+        self.map_topicName_publisher: dict[str,Publisher] = {}
         self.map_topicTypeInt_topicType = {
             0: Float64MultiArray,
             1: Bool,
@@ -22,7 +24,7 @@ class BlimpNode(Node):
             3: Float64
         }
 
-        self.subscriptionBufferSize = 3
+        self.topicBufferSize = 3
 
         super().__init__(self.name)
     
@@ -51,7 +53,7 @@ class BlimpNode(Node):
             # Create generic callback with topicName and topicType
             genericCallback = partial(self.callback_Subscription, topicName, topicTypeInt)
             # Create new subscription with generic callback
-            newSubscription = self.create_subscription(topicType, topicName, genericCallback, self.subscriptionBufferSize)
+            newSubscription = self.create_subscription(topicType, topicName, genericCallback, self.topicBufferSize)
             # Save new subscription in map
             self.map_topicName_subscriber[topicName] = newSubscription
     
@@ -67,9 +69,7 @@ class BlimpNode(Node):
             topicMessage = self.ParseROSMessage_Float64(message)
 
         self.func_sendTopicToBlimp(self, topicName, topicTypeInt, topicMessage)
-
-    def ParsePublishMessage(self, message):
-        pass
+        print("Node (",self.name,") subscribed to topic (",topicName,")",sep='')
 
     def ParseROSMessage_Float64MultiArray(self, message):
         values = message.data
@@ -90,3 +90,59 @@ class BlimpNode(Node):
         strMessage = str(message)
         return strMessage
 
+    def ParsePublishMessage(self, message):
+        topicNameLength = int(message[0:2])
+        topicName = message[2:2+topicNameLength]
+        topicTypeInt = int(message[2+topicNameLength:2+topicNameLength+1])
+        topicType = self.map_topicTypeInt_topicType[topicTypeInt]
+        topicData = message[2+topicNameLength+1:]
+
+        topicNameExt = "/" + self.name + "/" + topicName
+
+        # If publisher doesn't exist, make it
+        if topicName not in self.map_topicName_publisher:
+            self.map_topicName_publisher[topicName] = self.create_publisher(topicType, topicNameExt, self.topicBufferSize)
+        publisher = self.map_topicName_publisher[topicName]
+
+        if topicType == Float64MultiArray:
+            rosMessage = self.ParseMessage_Float64MultiArray(topicData)
+        elif topicType == Bool:
+            rosMessage = self.ParseMessage_Bool(topicData)
+        elif topicType == String:
+            rosMessage = self.ParseMessage_String(topicData)
+        elif topicType == Float64:
+            rosMessage = self.ParseMessage_Float64(topicData)
+        publisher.publish(rosMessage)
+        print("Node (",self.name,") published topic (",topicNameExt,"):",rosMessage.data,sep='')
+
+    def ParseMessage_Float64MultiArray(self, topicData):
+        # Split with comma delimiters
+        valueStrings = topicData.split(",")
+        # Get rid of first value (number of real values)
+        valueStrings = valueStrings[1:]
+        # Get rid of empty last value
+        if len(valueStrings[len(valueStrings)-1]) == 0:
+            valueStrings = valueStrings[0:len(valueStrings)-1]
+        
+        values = [float(valueStrings[i]) for i in range(len(valueStrings))]
+        rosMessage = Float64MultiArray()
+        rosMessage.data = values
+        return rosMessage
+
+    def ParseMessage_Bool(self, topicData):
+        value = (str(topicData) == "1")
+        rosMessage = Bool()
+        rosMessage.data = value
+        return rosMessage
+    
+    def ParseMessage_String(self, topicData):
+        value = topicData
+        rosMessage = String()
+        rosMessage.data = value
+        return rosMessage
+    
+    def ParseMessage_Float64(self, topicData):
+        value = float(topicData)
+        rosMessage = Float64()
+        rosMessage.data = value
+        return rosMessage

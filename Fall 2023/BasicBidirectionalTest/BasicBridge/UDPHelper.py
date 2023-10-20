@@ -26,6 +26,9 @@ class UDPHelper:
         self.callback_UDPRecvMsg = None
         
         #self.targetIP = "172.20.10.2"
+    
+    def __del__(self):
+        self.close()
 
     def open(self):
         self.thread = Thread(target=self.loopListen)
@@ -52,16 +55,13 @@ class UDPHelper:
             #print("Error:",e)
             return
         else:
-            message = data.decode(encoding='utf-8')#, errors='ignore')
-            if len(message) == 0:
-                print("EMPTY DATA:",data, "   len(data):",len(data),"  type:",type(data))
-            #print(inString)
-            print("Received message \"",message,"\" from ",address,".",sep='')
+            message = data.decode(encoding='utf-8', errors='ignore')
+            #print("Received message \"",message,"\" from ",address,".",sep='')
             if (message[0:2] == ":)"):
                 message = message[2:]
                 #print("Received message \"",message,"\" from ",address,".",sep='')
                 IP = address[0]
-                #self.callback_UDPRecvMsg(IP, message)
+                self.callback_UDPRecvMsg(IP, message)
 
 
     def send(self, IP, flag, message):
@@ -74,6 +74,10 @@ class UDPHelper:
         print("Sending \"",message,"\" to address ",address," = ",numBytes,sep='')
 
     def close(self):
+        if not self.looping:
+            # Already closed
+            return
+        print()
         print("UDP socket closing...")
         self.looping = False
         self.thread.join()
