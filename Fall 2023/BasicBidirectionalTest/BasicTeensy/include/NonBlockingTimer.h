@@ -8,12 +8,12 @@ class NonBlockingTimer{
 
     public:
         void setFrequency(double frequency) {
-            lastTime = -100000000;
+            lastTime = 0;
             milliDelay = round(1000 / frequency);
         }
 
         void setPeriod(double period){
-            lastTime = -100000000;
+            lastTime = 0;
             milliDelay = round(1000 * period);
         }
 

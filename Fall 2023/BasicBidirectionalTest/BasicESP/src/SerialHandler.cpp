@@ -1,5 +1,4 @@
 #include "SerialHandler.h"
-#include <Arduino.h>
 
 void SerialHandler::Init(){
     Serial.begin(115200);
@@ -28,7 +27,7 @@ void SerialHandler::SendSerial(char flag, String message){
     bufferSerial_out += delimiter_serial;
 }
 
-// Parses messages along Serial1 (from ESP)
+// Parses messages along Serial
 void SerialHandler::ParseMessages(){
     while(Serial.available() > 0){
         char currentChar = Serial.read();
@@ -61,9 +60,10 @@ void SerialHandler::SendMessages(){
             lastMessageOutMicros = currentTimeMicros;
 
             // Consider if the buffer is shorter than max message length
-            int lastIndex = min(bytesPerMessage,bufferSerial_out.length());
+            int lastIndex = bytesPerMessage < bufferSerial_out.length() ? bytesPerMessage : bufferSerial_out.length();
             String message = bufferSerial_out.substring(0, lastIndex);
             bufferSerial_out = bufferSerial_out.substring(lastIndex);
+            Serial.print(message);
         }
     }
 }

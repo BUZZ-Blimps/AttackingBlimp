@@ -10,14 +10,14 @@ class UDPHandler{
     public:
         void Init();
         void Update();
-        void SendUDP(String message);
+        void SendUDP(char flag, String message);
 
         function<void(String)> callback_UDPRecvMsg;
 
     private:
         void callback_SerialRecvMsg(String message);
         
-        String StringLength(String variable, int numDigits);
+        String StringLength(String variable, unsigned int numDigits);
 
         // ========== Connection parameters ==========
         const char* wifi_ssid = "Adams iphone";

@@ -65,9 +65,12 @@ void SerialHandler::SendMessages(){
             lastMessageOutMicros = currentTimeMicros;
 
             // Consider if the buffer is shorter than max message length
-            int lastIndex = min(bytesPerMessage,bufferSerial1_out.length());
+            int lastIndex = bytesPerMessage < bufferSerial1_out.length() ? bytesPerMessage : bufferSerial1_out.length();
             String message = bufferSerial1_out.substring(0, lastIndex);
             bufferSerial1_out = bufferSerial1_out.substring(lastIndex);
+            Serial1.print(message);
+            Serial.print("SentToESP: ");
+            Serial.println(message);
         }
     }
 }

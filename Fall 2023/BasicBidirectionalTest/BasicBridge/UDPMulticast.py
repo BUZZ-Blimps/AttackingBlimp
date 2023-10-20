@@ -19,15 +19,13 @@ class UDPHelper:
         print("Initialized UDP socket.")
 
         self.looping = False
-        self.callback = None
-        self.targetIP = None
+        self.callback_UDPRecvMsg = None
+        
+        #self.targetIP = "172.20.10.2"
 
     def open(self):
         self.thread = Thread(target=self.loopListen)
         self.thread.start()
-    
-    def setCallback(self, callback):
-        self.callback = callback
 
     def loopListen(self):
         time.sleep(1)
@@ -49,22 +47,23 @@ class UDPHelper:
             #print("lmao")
             return
         else:
-            inString = data.decode(encoding='utf-8', errors='ignore')
+            message = data.decode(encoding='utf-8', errors='ignore')
             #print(inString)
-            if (inString[0:2] == ":)"):
-                inString = inString[2:]
-                print("Received message \"",inString,"\" from ",address,".",sep='')
-                self.targetIP = address[0]
-                self.callback(inString)
+            if (message[0:2] == ":)"):
+                message = message[2:]
+                print("Received message \"",message,"\" from ",address,".",sep='')
+                IP = address[0]
+                self.callback_UDPRecvMsg(IP, message)
 
 
-    def send(self, message):
-        if self.targetIP is None:
+    def send(self, IP, message):
+        if IP is None:
             return
         message = ":)" + message
         outBytes = message.encode(encoding='utf-8',errors='ignore')
-        self.sock.sendto(outBytes, (self.targetIP, self.port))
-        print("Sending: \"",message,"\"",sep='')
+        address = (IP, self.port)
+        self.sock.sendto(outBytes, address)
+        print("Sending \"",message,"\" to address ",address,sep='')
 
     def close(self):
         print("UDP socket closing...")

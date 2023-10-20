@@ -1,6 +1,7 @@
 from UDPMulticast import UDPHelper
 import rclpy
 from rclpy.node import Node
+from Bridge import Bridge
 
 from std_msgs.msg import String
 
@@ -18,11 +19,20 @@ class Node_Pub(Node):
         self.get_logger().info("Published value (%s)" % value)
 
     def callback_timer(self):
-        msg = "Hi from Bridge (" + str(self.get_clock().now()) + ")!"
-        self.udpHelper.send(msg)
+        #msg = "Hi from Bridge (" + str(self.get_clock().now()) + ")!"
+        self.udpHelper.send("P09testTopic2HeyTeensy!")
 
 def main(args=None):
     rclpy.init(args=args)
+
+    bridge = Bridge()
+
+    while True:
+        bridge.Update()
+
+    rclpy.shutdown()
+
+    """
 
     global udpHelper
     udpHelper = UDPHelper()
@@ -35,6 +45,7 @@ def main(args=None):
     rclpy.spin(nodePub)
 
     rclpy.shutdown()
+    """
 
 if __name__ == "__main__":
     main()

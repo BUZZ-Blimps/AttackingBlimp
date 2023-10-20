@@ -7,7 +7,7 @@ SerialHandler serialHandler;
 UDPHandler udpHandler;
 
 NonBlockingTimer timer_wifiStatus;
-float checkWifiStatusPeriod = 5; // [s]
+float checkWifiStatusPeriod = 2; // [s]
 
 void callback_SerialRecvMsg(String message);
 void callback_UDPRecvMsg(String message);
@@ -18,6 +18,8 @@ void setup(){
 
   serialHandler.Init();
   udpHandler.Init();
+
+  udpHandler.serialHandler = &serialHandler;
 
   timer_wifiStatus.setPeriod(checkWifiStatusPeriod);
 }
@@ -48,7 +50,9 @@ void loop(){
   
   // Check wifi status
   if(timer_wifiStatus.isReady()){
-    String message = udpHandler.checkWifiStatusPeriod() ? "1" : "0";
+    String message = udpHandler.checkWifiConnection() ? "1" : "0";
     serialHandler.SendSerial(flag_UDPConnectionData, message);
   }
+
+  //Serial.print("ESP#");
 }

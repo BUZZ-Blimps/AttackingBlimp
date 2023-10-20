@@ -20,7 +20,7 @@ class SerialHandler{
         void SendMessages();
         void RecordESPHearbeat();
 
-        const int bytesPerMessage = 20;
+        const unsigned int bytesPerMessage = 20;
         const float messagesPerSecond = 100; // [Hz]
         const float microsPerSecond = 1000000; // [us/s]
 

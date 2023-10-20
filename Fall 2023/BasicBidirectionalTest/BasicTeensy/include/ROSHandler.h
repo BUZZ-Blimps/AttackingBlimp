@@ -33,11 +33,14 @@ class ROSHandler{
         void callback_UDPRecvMsg(String message);
 
         void SubscribeTopic(String topicName, MessageType topicType, function<void(String)> genericCallback);
+        void PublishTopic(String topicName, MessageType topicType, String data);
 
         void ParseTopic_Float64MultiArray(function<void(int, float*)> callback, String data);
         void ParseTopic_Bool(function<void(bool)> callback, String data);
         void ParseTopic_String(function<void(String)> callback, String data);
         void ParseTopic_Float64(function<void(float)> callback, String data);
+
+        String StringLength(String variable, unsigned int numDigits);
 
         const char flag_subscribe = 'S';
         const char flag_publish = 'P';
