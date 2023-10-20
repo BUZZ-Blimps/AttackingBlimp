@@ -86,7 +86,9 @@ void ROSHandler::SubscribeTopic(String topicName, MessageType topicType, functio
     map_genericCallbackFunctions[topicID] = genericCallback;
     Serial.print("Subscribed to topic (");
     Serial.print(topicName);
-    Serial.println(").");
+    Serial.print(") with type ");
+    Serial.print(topicType);
+    Serial.println(".");
 }
 
 void ROSHandler::PublishTopic(String topicName, MessageType topicType, String data){

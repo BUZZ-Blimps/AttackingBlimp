@@ -102,6 +102,7 @@ class BlimpNode(Node):
         # If publisher doesn't exist, make it
         if topicName not in self.map_topicName_publisher:
             self.map_topicName_publisher[topicName] = self.create_publisher(topicType, topicNameExt, self.topicBufferSize)
+            print("Created publisher (",topicNameExt,") of type ",topicType,sep='')
         publisher = self.map_topicName_publisher[topicName]
 
         if topicType == Float64MultiArray:
@@ -113,7 +114,8 @@ class BlimpNode(Node):
         elif topicType == Float64:
             rosMessage = self.ParseMessage_Float64(topicData)
         publisher.publish(rosMessage)
-        print("Node (",self.name,") published topic (",topicNameExt,"):",rosMessage.data,sep='')
+        print("Node (",self.name,") published topic (",topicNameExt,"): ",rosMessage.data,sep='')
+        print("Type:",type(rosMessage))
 
     def ParseMessage_Float64MultiArray(self, topicData):
         # Split with comma delimiters

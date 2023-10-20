@@ -26,6 +26,8 @@ void SerialHandler::SendSerial(char flag, String message){
     bufferSerial1_out += flag;
     bufferSerial1_out += message;
     bufferSerial1_out += delimiter_serial;
+    Serial.print("Sending to ESP: ");
+    Serial.println(message);
 }
 
 // Parses messages along Serial1 (from ESP)
@@ -69,8 +71,8 @@ void SerialHandler::SendMessages(){
             String message = bufferSerial1_out.substring(0, lastIndex);
             bufferSerial1_out = bufferSerial1_out.substring(lastIndex);
             Serial1.print(message);
-            Serial.print("SentToESP: ");
-            Serial.println(message);
+            //Serial.print("SentToESP: ");
+            //Serial.println(message);
         }
     }
 }
