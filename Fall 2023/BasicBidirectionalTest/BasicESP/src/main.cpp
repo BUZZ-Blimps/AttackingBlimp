@@ -13,6 +13,7 @@ void callback_SerialRecvMsg(String message);
 void callback_UDPRecvMsg(String message);
 
 void setup(){
+  delay(1000);
   serialHandler.callback_SerialRecvMsg = callback_SerialRecvMsg;
   udpHandler.callback_UDPRecvMsg = callback_UDPRecvMsg;
 
@@ -53,6 +54,4 @@ void loop(){
     String message = udpHandler.checkWifiConnection() ? "1" : "0";
     serialHandler.SendSerial(flag_UDPConnectionData, message);
   }
-
-  //Serial.print("ESP#");
 }

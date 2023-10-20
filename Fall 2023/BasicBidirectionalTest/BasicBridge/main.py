@@ -1,4 +1,4 @@
-from UDPMulticast import UDPHelper
+from UDPHelper import UDPHelper
 import rclpy
 from rclpy.node import Node
 from Bridge import Bridge
@@ -9,9 +9,11 @@ class Node_Pub(Node):
     def __init__(self):
         super().__init__('minimal_publisher')
         self.publisher = self.create_publisher(String, 'TeensyValue', 1)
-        self.timerPeriod = 1
+        print(type(self.publisher))
+        self.timerPeriod = 0.2
         self.timer = self.create_timer(self.timerPeriod, self.callback_timer)
-        self.udpHelper = udpHelper
+        self.udpHelper = UDPHelper()
+        self.udpHelper.open()
 
     def publishValue(self, value):
         msg = String(data=value)
@@ -20,15 +22,20 @@ class Node_Pub(Node):
 
     def callback_timer(self):
         #msg = "Hi from Bridge (" + str(self.get_clock().now()) + ")!"
-        self.udpHelper.send("P09testTopic2HeyTeensy!")
+        self.udpHelper.send("172.20.10.2","P","09testTopic2HeyTeensy!")
+        #print("Received message \"\" from ('172.20.10.2').",sep='')
+        #self.udpHelper.send("172.20.10.3","","Hello superman!")
+        pass
 
 def main(args=None):
     rclpy.init(args=args)
 
-    bridge = Bridge()
+    nodePub = Node_Pub()
+    rclpy.spin(nodePub)
+    #bridge = Bridge()
 
-    while True:
-        bridge.Update()
+    #while True:
+        #bridge.Update()
 
     rclpy.shutdown()
 
@@ -37,7 +44,6 @@ def main(args=None):
     global udpHelper
     udpHelper = UDPHelper()
 
-    nodePub = Node_Pub()
 
     udpHelper.open()
     udpHelper.setCallback(nodePub.publishValue)

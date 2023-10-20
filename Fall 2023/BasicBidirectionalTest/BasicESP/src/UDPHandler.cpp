@@ -14,9 +14,11 @@ void UDPHandler::Update(){
 
         UDP.begin(UDP_port);
         UDP.flush();
+        PrintSerialDebug("Starting UDP connection.");
     }else if(connectedWifi && !checkWifiConnection()){
         // Lost wifi connection
         connectedWifi = false;
+        PrintSerialDebug("Disconnected from Wifi.");
     }
 
     // Receive messages
@@ -45,10 +47,11 @@ void UDPHandler::ParseConnectWifi(String message){
 }
 
 void UDPHandler::SendUDP(String message){
-    UDP.beginPacket(bridgeIP, UDP_port);
+    int a = UDP.beginPacket(bridgeIP, UDP_port);
     String configuredOut = identifier + message;
-    UDP.print(configuredOut);
-    UDP.endPacket();
+    int b = UDP.write(configuredOut.c_str(),configuredOut.length());
+    int c = UDP.endPacket();
+    PrintSerialDebug("MessageToSnap: " + message + ", a=" + a + ", b=" + b + ", c=" + c);
 }
 
 bool UDPHandler::checkWifiConnection(){
@@ -58,12 +61,11 @@ bool UDPHandler::checkWifiConnection(){
 void UDPHandler::readUDPMessages(){
     String message;
     while(readUDPMessage(&message)){
-        callback_UDPRecvMsg(message);
+        if(callback_UDPRecvMsg) callback_UDPRecvMsg(message);
     }
 }
 
 bool UDPHandler::readUDPMessage(String* message){
-    //int parsed = UDP.parsePacket();
     UDP.parsePacket();
     int avail = UDP.available();
     
@@ -77,7 +79,6 @@ bool UDPHandler::readUDPMessage(String* message){
         buff[i] = buffChar;
     }
     
-    UDP.flush();    
     buff[avail] = '\0';
     String input = String(buff);
 

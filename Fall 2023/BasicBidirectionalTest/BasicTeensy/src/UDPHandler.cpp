@@ -44,12 +44,13 @@ void UDPHandler::callback_SerialRecvMsg(String message){
 String UDPHandler::StringLength(String variable, unsigned int numDigits){
     int length = variable.length();
     String lengthStr = String(length);
-    if(lengthStr.length() > numDigits){
+    int lengthLengthStr = lengthStr.length();
+    if(lengthLengthStr > numDigits){
         // ERROR
         return "ERROR";
     }else{
         // Add zeros
-        for(unsigned int i=0; i<(numDigits-lengthStr.length()); i++){
+        for(int i=0; i<(numDigits-lengthLengthStr); i++){
             lengthStr = "0" + lengthStr;
         }
         return lengthStr;
