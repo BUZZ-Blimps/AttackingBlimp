@@ -4,6 +4,7 @@
 #include "UDPHandler.h"
 #include <functional>
 #include <map>
+#include "NonBlockingTimer.h"
 
 using namespace std;
 
@@ -32,6 +33,8 @@ class ROSHandler{
     private:
         void callback_UDPRecvMsg(String message);
 
+        void SendListSubscribedTopics();
+
         void SubscribeTopic(String topicName, MessageType topicType, function<void(String)> genericCallback);
         void PublishTopic(String topicName, MessageType topicType, String data);
 
@@ -48,4 +51,5 @@ class ROSHandler{
 
         std::map<String,function<void(String)>> map_genericCallbackFunctions;
         UDPHandler udpHandler;
+        NonBlockingTimer timer_sendListSubscribedTopics;
 };

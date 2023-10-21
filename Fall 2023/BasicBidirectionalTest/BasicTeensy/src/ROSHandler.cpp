@@ -1,4 +1,5 @@
 #include "ROSHandler.h"
+#include "NonBlockingTimer.h"
 
 using namespace std;
 using namespace std::placeholders;
@@ -6,11 +7,17 @@ using namespace std::placeholders;
 void ROSHandler::Init(){
     udpHandler.callback_UDPRecvMsg = bind(&ROSHandler::callback_UDPRecvMsg, this, _1);
     udpHandler.Init();
+
+    timer_sendListSubscribedTopics.setPeriod(1);
 }
 
 void ROSHandler::Update(){
     udpHandler.Update();
-    //udpHandler.SendUDP("Test");
+
+    // Occasionally send a list of all subscribed topics
+    if(timer_sendListSubscribedTopics.isReady()){
+        SendListSubscribedTopics();
+    }
 }
 
 void ROSHandler::SubscribeTopic_Float64MultiArray(String topicName, function<void(int, float*)> callback){
@@ -71,7 +78,7 @@ void ROSHandler::callback_UDPRecvMsg(String message){
         String topicData = message.substring(topicDataIndex);
 
         // Find and call callback function
-        String topicID = topicName + "-" + String(topicType);
+        String topicID = topicName + String(topicType);
         auto iter = map_genericCallbackFunctions.find(topicID);
         if(iter != map_genericCallbackFunctions.end()){
             // Callback function exists!
@@ -81,14 +88,30 @@ void ROSHandler::callback_UDPRecvMsg(String message){
     }
 }
 
+void ROSHandler::SendListSubscribedTopics(){
+    int numSubscribedTopics = map_genericCallbackFunctions.size();
+    String message = String(numSubscribedTopics);
+    for(auto iter = map_genericCallbackFunctions.begin(); iter != map_genericCallbackFunctions.end(); iter++){
+        String topicID = iter->first;
+        String topicName = topicID.substring(0, topicID.length()-1);
+        String topicType = topicID.substring(topicID.length()-1);
+        message += StringLength(topicName, 2);
+        message += topicName;
+        message += topicType;
+    }
+    udpHandler.SendUDP(flag_subscribe, message);
+}
+
 void ROSHandler::SubscribeTopic(String topicName, MessageType topicType, function<void(String)> genericCallback){
-    String topicID = topicName + "-" + String(topicType);
+    String topicID = topicName + String(topicType);
     map_genericCallbackFunctions[topicID] = genericCallback;
     Serial.print("Subscribed to topic (");
     Serial.print(topicName);
     Serial.print(") with type ");
     Serial.print(topicType);
     Serial.println(".");
+    // Immediately send a message upon new subscription
+    SendListSubscribedTopics();
 }
 
 void ROSHandler::PublishTopic(String topicName, MessageType topicType, String data){
