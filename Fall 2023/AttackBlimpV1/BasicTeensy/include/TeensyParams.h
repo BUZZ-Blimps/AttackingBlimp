@@ -1,5 +1,7 @@
-/*   Populate with Constants Related to Teensy Control   */
+// Populate with Constants Related to Teensy Control //
 
+
+/* Lawson Stuff */
 //this is the 3 feedbacks
 #define FEEDBACK_BUF_SIZE 3
 
@@ -28,6 +30,17 @@
 //constants
 #define MICROS_TO_SEC             1000000.0
 
-// Define topic names
-#define MULTIARRAY_TOPIC          "REPLACE WITH TOPIC NAME"
-#define BOOL_TOPIC          "REPLACE WITH TOPIC NAME"
+
+/* New Attack Blimp Params */
+
+// Define subscription topic names
+
+#define TEST_SUB            "testTopic"         // Testing subscription - type: String
+#define MULTIARRAY_TOPIC    "/Yoshi/moveit"     // For motor commands subscription - type: Float64MultiArray
+#define AUTO_TOPIC          "/Yoshi/automato"   // For autonomous state subscription - type: Bool
+
+// Define Published topic names
+
+#define TEST_PUB           "/Yoshi/TeensyTopic" // Testing publishing - type: String
+#define BLIMP_ID           "/Yoshi/WhoamI"      // Publish ID of blimp - type: String
+#define BLIMP_STATUS       "/Yoshi/state"       // Publish current state of blimp - type: Bool
