@@ -33,6 +33,12 @@ void cmd_callback(int arraySize, float* arrayPtr)
 {
   // Need to determine order of elements in Float64MultiArray  
   
+  //Example:
+  for (int i = 0; i < arraySize; i++)
+  {
+    
+
+  }
 }
 
 void setup(){
