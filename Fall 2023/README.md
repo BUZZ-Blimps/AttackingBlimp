@@ -48,3 +48,11 @@ upload_resetmethod = nodemcu
 monitor_speed = 115200
 ```
 4. Upload code!
+
+
+# Assembly
+Ultrasonic connects to the camera VCC 3.3V, GND rail, and P6 ADC.
+![image](https://github.com/SWAMP-Blimps/AttackingBlimp/assets/144856739/4c4a60d0-28ab-49de-996c-aef4ee4895f2)
+
+H7 on PCB connects to OpenMV camera from top to bottom: P0, P1, VCC, GND. 
+
