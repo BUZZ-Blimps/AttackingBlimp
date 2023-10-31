@@ -8,11 +8,11 @@ import select
 
 class UDPHelper:
     def __init__(self):
-        #self.IP = "192.168.0.200" # core blimp
-        self.IP = "172.20.10.14" # Adams iphone
+        self.IP = "192.168.0.203" # core blimp
+        #self.IP = "172.20.10.14" # Adams iphone
         #self.IP = "10.42.0.158" # corelab-superman
-        self.port = 64209
-        # self.port = 5010
+        #self.port = 64209
+        self.port = 5010
 
         #Setup UDP socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

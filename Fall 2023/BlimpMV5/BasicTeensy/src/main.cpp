@@ -178,9 +178,9 @@ void setup() {
   // Subscriber Setup //
 
   //rosHandler.SubscribeTopic_String(TEST_SUB, test_callback); // Test subscription
-  rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, callback_motors);
-  rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, callback_auto);
-  rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
+  // rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, callback_motors);
+  // rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, callback_auto);
+  // rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
 
 
   // Publisher
@@ -527,7 +527,7 @@ void loop() {
   double yawPIDInput = 0.0;
   double deadband = 2.0; //To do
 
-  Serial.println(state);
+  //Serial.println(state);
   
   yawPIDInput = yawRatePID.calculate(yawInput, yawRateFilter.last, 100);   
   if (abs(yawInput-yawRateFilter.last) < deadband) {
