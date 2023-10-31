@@ -100,7 +100,7 @@ To start the bridge, open a separate terminal window. Then, navigate to the foll
 
 Once in the correct directory, run the following command in terminal:
 ```
-python3 main,py
+python3 main.py
 ```
 
 ## Function
