@@ -54,7 +54,7 @@ wlp0s20f3: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 
 The IP address needed is under the wlan (abbreviated ```wl```) heading. The proper IP address is preceded by "inet", and, in this case, it is 192.168.0.203.
 
-The variable names in each program should make it obvious which oarameters go where, but if you have questions ask Adam.
+The variable names in each program should make it obvious which parameters go where, but if you have questions ask Adam.
 
 ### 2. Flash Code to ESP-01 using PlatformIO and the DIYMall Programmer
 
