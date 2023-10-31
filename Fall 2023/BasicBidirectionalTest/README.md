@@ -54,7 +54,7 @@ wlp0s20f3: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 
 The IP address needed is under the wlan (abbreviated ```wl```) heading. The proper IP address is preceded by "inet", and, in this case, it is 192.168.0.203.
 
-The variable names in each program should make it obvious which oarameters go where, but if you have questions ask Adam.
+The variable names in each program should make it obvious which parameters go where, but if you have questions ask Adam.
 
 ### 2. Flash Code to ESP-01 using PlatformIO and the DIYMall Programmer
 
@@ -67,7 +67,7 @@ Occasionally, a permission error may occur.
 
 To fix this, paste the following command into the terminal:
 ```
-sudo chmod a+rw /dev/ttyUSB0`
+sudo chmod a+rw /dev/ttyUSB0
 ```
 
 ### 3. Flash Code to the Teesny using PlatformIO 
@@ -88,7 +88,7 @@ To start the Basestation, navigate to the following (or equivalent) directory in
 Once in the correct directory, run the following command in terminal:
 
 ```
-python3 main,py
+python3 main.py
 ```
 
 ### 5. Start up the Communcations Bridge in Terminal
@@ -100,7 +100,7 @@ To start the bridge, open a separate terminal window. Then, navigate to the foll
 
 Once in the correct directory, run the following command in terminal:
 ```
-python3 main,py
+python3 main.py
 ```
 
 ## Function
