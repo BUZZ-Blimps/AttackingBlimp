@@ -2,6 +2,7 @@
 
 // Lawson Stuff 
 #include <tgmath.h>
+#include <Arduino.h>
 
 #include "BerryIMU_v3.h"
 #include "EMAFilter.h"
@@ -13,9 +14,8 @@
 #include "BangBang.h"
 #include "baro_acc_kf.h"
 #include "gyro_ekf.h"
-
 #include "Madgwick_Filter.h"
-#include <Arduino.h>
+
 #include "ROSHandler.h"
 #include "NonBlockingTimer.h"
 #include "TeensyParams.h"
@@ -57,14 +57,29 @@ void cmd_callback(int arraySize, float* arrayPtr)
   }
 }
 
+/*autonomous callback
+ * Description: Callback intended to convert Float64MultiArray messages to motor commands 
+ */
+void autonomous_callback(bool state)
+{
+  // Need to determine order of elements in Float64MultiArray  
+  
+  //Example:
+  for (int i = 0; i < arraySize; i++)
+  {
+    
+
+  }
+}
+
 void setup(){
   rosHandler.Init();
   
   // Subscriber Setup //
 
   //rosHandler.SubscribeTopic_String(TEST_SUB, test_callback); // Test subscription
-
   rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, cmd_callback);
+  rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, autonomous_callback);
 
 
 
