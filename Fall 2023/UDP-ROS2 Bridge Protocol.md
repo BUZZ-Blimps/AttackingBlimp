@@ -1,6 +1,7 @@
 # Protocol Documentation for UDP-ROS2 Bridge
 
 **MISC**:
+- IMPORTANT: We gave Teensy support for Float64, which is 8 bytes. ```float```s take up 4 bytes and ```double```s take up 8. However, people seemed worried that using doubles would take up too much space. IF YOU HAVE ISSUES WITH IT (program running out of space or too slow), consider swapping to Float32.
 - UDPHandler telling ESP to create UDP connection:
     - "C" + [2 digit number of length of wifi_ssid] + [wifi_ssid] + [2 digit number of length of wifi_password] + [wifi_password] + [2 digit number of length of bridgeIP] + [bridgeIP] + [1 digit number of length of UDP_port] + [UDP_port]
 - Teensy msg to esp starting with "E": contains UDP connection info

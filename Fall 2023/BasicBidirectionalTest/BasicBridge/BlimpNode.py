@@ -4,6 +4,7 @@ from rclpy.publisher import Publisher
 from rclpy.subscription import Subscription
 from functools import partial
 #from Bridge import Bridge
+from pydoc import locate
 
 from std_msgs.msg import Float64MultiArray, Bool, String, Float64
 
@@ -34,7 +35,7 @@ class BlimpNode(Node):
         msgIndex += 2
         for i in range(numTopics):
             # Parse message for each topic -> topicName, topicType
-            topicNameLength = message[msgIndex:msgIndex+2]
+            topicNameLength = int(message[msgIndex:msgIndex+2])
             msgIndex += 2
             topicName = message[msgIndex:msgIndex+topicNameLength]
             msgIndex += topicNameLength
@@ -53,11 +54,19 @@ class BlimpNode(Node):
             # Create generic callback with topicName and topicType
             genericCallback = partial(self.callback_Subscription, topicName, topicTypeInt)
             # Create new subscription with generic callback
+            print("New subscription type (",topicType,") - name (",topicName,")",sep='')
             newSubscription = self.create_subscription(topicType, topicName, genericCallback, self.topicBufferSize)
             # Save new subscription in map
             self.map_topicName_subscriber[topicName] = newSubscription
+            print("Node (",self.name,") subscribed to topic (",topicName,")",sep='')
+        else:
+            print("Node (",self.name,") already subscribed to topic (",topicName,")",sep='')
     
+    def test(self, message1):
+        print("ROS published:",message1)
+
     def callback_Subscription(self, topicName, topicTypeInt, message):
+        print("ROS published:", message)
         topicType = self.map_topicTypeInt_topicType[topicTypeInt]
         if topicType == Float64MultiArray:
             topicMessage = self.ParseROSMessage_Float64MultiArray(message)
@@ -69,7 +78,6 @@ class BlimpNode(Node):
             topicMessage = self.ParseROSMessage_Float64(message)
 
         self.func_sendTopicToBlimp(self, topicName, topicTypeInt, topicMessage)
-        print("Node (",self.name,") subscribed to topic (",topicName,")",sep='')
 
     def ParseROSMessage_Float64MultiArray(self, message):
         values = message.data
@@ -87,7 +95,7 @@ class BlimpNode(Node):
         return strMessage
 
     def ParseROSMessage_Float64(self, message):
-        strMessage = str(message)
+        strMessage = str(message.data)
         return strMessage
 
     def ParsePublishMessage(self, message):
@@ -97,7 +105,10 @@ class BlimpNode(Node):
         topicType = self.map_topicTypeInt_topicType[topicTypeInt]
         topicData = message[2+topicNameLength+1:]
 
-        topicNameExt = "/" + self.name + "/" + topicName
+        if topicName[0] == '/':
+            topicNameExt = "/" + self.name + topicName
+        else:
+            topicNameExt = "/" + self.name + "/" + topicName
 
         # If publisher doesn't exist, make it
         if topicName not in self.map_topicName_publisher:
@@ -114,8 +125,8 @@ class BlimpNode(Node):
         elif topicType == Float64:
             rosMessage = self.ParseMessage_Float64(topicData)
         publisher.publish(rosMessage)
-        print("Node (",self.name,") published topic (",topicNameExt,"): ",rosMessage.data,sep='')
-        print("Type:",type(rosMessage))
+        #print("Node (",self.name,") published topic (",topicNameExt,"): ",rosMessage.data,sep='')
+        #print("Type:",type(rosMessage))
 
     def ParseMessage_Float64MultiArray(self, topicData):
         # Split with comma delimiters
