@@ -67,7 +67,7 @@ Occasionally, a permission error may occur.
 
 To fix this, paste the following command into the terminal:
 ```
-sudo chmod a+rw /dev/ttyUSB0`
+sudo chmod a+rw /dev/ttyUSB0
 ```
 
 ### 3. Flash Code to the Teesny using PlatformIO 
@@ -88,7 +88,7 @@ To start the Basestation, navigate to the following (or equivalent) directory in
 Once in the correct directory, run the following command in terminal:
 
 ```
-python3 main,py
+python3 main.py
 ```
 
 ### 5. Start up the Communcations Bridge in Terminal
