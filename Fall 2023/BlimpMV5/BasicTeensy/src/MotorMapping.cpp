@@ -1,6 +1,6 @@
 #include "MotorMapping.h"
 
-MotorMapping::MotorMapping(int LSPin, int RSPin, int LMPin, int RMPin, double newdeadband, double newturnOnCom, double newminCom, double newmaxCom, double servoFilter) {
+void MotorMapping::Init(int LSPin, int RSPin, int LMPin, int RMPin, double newdeadband, double newturnOnCom, double newminCom, double newmaxCom, double servoFilter) {
     //set servo pins
     this->LServo.attach(LSPin);
     this->RServo.attach(RSPin);

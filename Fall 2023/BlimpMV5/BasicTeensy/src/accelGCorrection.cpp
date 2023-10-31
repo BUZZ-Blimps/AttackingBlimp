@@ -1,6 +1,6 @@
 #include "accelGCorrection.h"
 
-AccelGCorrection::AccelGCorrection() {
+void AccelGCorrection::Init() {
     Serial.println("Starting correction");
 }
 

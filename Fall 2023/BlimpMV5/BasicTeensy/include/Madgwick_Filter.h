@@ -9,7 +9,7 @@
 class Madgwick_Filter
 {
   public:
-    Madgwick_Filter();
+    void Init();
     void Madgwick_Update(float gyr_rateXraw, float gyr_rateYraw, float gyr_rateZraw, float AccXraw, float AccYraw, float AccZraw);
     float roll_final;
     float pitch_final;

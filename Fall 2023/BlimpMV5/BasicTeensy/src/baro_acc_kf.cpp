@@ -1,6 +1,6 @@
 #include "baro_acc_kf.h"
 
-BaroAccKF::BaroAccKF() {
+void BaroAccKF::Init() {
   this->Xkp = {0,
                0,
                0,

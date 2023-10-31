@@ -36,8 +36,9 @@
 // Define subscription topic names
 
 #define TEST_SUB            "testTopic"         // Testing subscription - type: String
-#define MULTIARRAY_TOPIC    "/Yoshi/moveit"     // For motor commands subscription - type: Float64MultiArray
-#define AUTO_TOPIC          "/Yoshi/automato"   // For autonomous state subscription - type: Bool
+#define MULTIARRAY_TOPIC    "/Yoshi/motorCommands"     // For motor commands subscription - type: Float64MultiArray
+#define AUTO_TOPIC          "/Yoshi/auto"   // For autonomous state subscription - type: Bool
+#define COLOR_TOPIC          "/Yoshi/target_color"   // For autonomous state subscription - type: Bool
 
 // Define Published topic names
 

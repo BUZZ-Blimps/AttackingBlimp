@@ -10,7 +10,7 @@
 class BerryIMU_v3
 {
   public:
-    BerryIMU_v3();
+    void Init();
     void IMU_read();
     void IMU_Flip_Axis();
     void IMU_ROTATION(float rotation_angle);

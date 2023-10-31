@@ -6,7 +6,7 @@
 
 class MotorMapping {
     public:
-    MotorMapping(int LSPin, int RSPin, int LMPin, int RMPin, double newdeadband, double newturnOnCom, double newminCom, double newmaxCom, double servoFilter);
+    void Init(int LSPin, int RSPin, int LMPin, int RMPin, double newdeadband, double newturnOnCom, double newminCom, double newmaxCom, double servoFilter);
     void update(double pitch, double forward, double up, double yaw);
     void writeLServo(double angle);
     void writeRServo(double angle);

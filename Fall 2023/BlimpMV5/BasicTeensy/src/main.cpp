@@ -26,7 +26,6 @@ using namespace std;
 // Initialize Teensy <-> ROS bridge on Teensy
 ROSHandler rosHandler;
 NonBlockingTimer timer_pub;
-MotorMapping* ptrMotorMapping = nullptr;
 
 enum states {
   searching,
@@ -62,9 +61,7 @@ double lastMsgTime = -1.0;
 bool outMsgRequest = false;
 
 //servo objects/motor objects
-
-//motor->(pin,deadband,turn on,min,max)
-MotorMapping motors(LSPIN, RSPIN, LMPIN, RMPIN, 5, 50, 1000, 2000,0.3);
+MotorMapping motors;
 
 //objects
 BerryIMU_v3 BerryIMU;
@@ -78,33 +75,33 @@ AccelGCorrection accelGCorrection;
 
 GyroEKF gyroEKF;
 
-EMAFilter yawRateFilter(0.2);
-EMAFilter pitchRateFilter(0.1);
+EMAFilter yawRateFilter;
+EMAFilter pitchRateFilter;
 
-EMAFilter pitchAngleFilter(0.2);
-EMAFilter rollAngleFilter(0.2);
+EMAFilter pitchAngleFilter;
+EMAFilter rollAngleFilter;
 
 //pre process for accel before vertical kalman filter
-EMAFilter verticalAccelFilter(0.05);
+EMAFilter verticalAccelFilter;
 
 //baro offset computation from base station value
-EMAFilter baroOffset(0.5);
+EMAFilter baroOffset;
 //roll offset computation from imu
-EMAFilter rollOffset(0.5);
+EMAFilter rollOffset;
 
+
+// PIDs
 PID yawRatePID(3,0,0);  
 PID pitchRatePID(2.4,0,0);
-
-
 //adjust  these for Openmv dont change the middle zeros
 PID xPos(0.25,0,0);
-
 PID yPos(0.4,0,0);
 
 //WIFI objects
 BlimpClock udpClock;
 BlimpClock heartbeat;
 BlimpClock motorClock;
+BlimpClock serialHeartbeat;
 
 //variables
 double feedbackData[FEEDBACK_BUF_SIZE];
@@ -149,14 +146,45 @@ void callback_auto(bool value);
 void callback_targetColor(int64_t value);
 
 void setup() {
+  Serial.begin(115200);
   rosHandler.Init();
+
+
+  // Initialize motors, gimbals and sensors
+  //pre process for accel before vertical kalman filter
+
+  //motor->(pin,deadband,turn on,min,max)
+  motors.Init(LSPIN, RSPIN, LMPIN, RMPIN, 5, 50, 1000, 2000,0.3);
+
+  // Sensors
+  BerryIMU.Init();
+  madgwick.Init();
+  kf.Init();
+  accelGCorrection.Init();
+  gyroEKF.Init();
+
+  // EMA Filters
+  yawRateFilter.Init(0.2);
+  pitchRateFilter.Init(0.1);
+  pitchAngleFilter.Init(0.2);
+  rollAngleFilter.Init(0.2);
+  //pre process for accel before vertical kalman filter
+  verticalAccelFilter.Init(0.05);
+  //baro offset computation from base station value
+  baroOffset.Init(0.5);
+  //roll offset computation from imu
+  rollOffset.Init(0.5);
   
   // Subscriber Setup //
 
   //rosHandler.SubscribeTopic_String(TEST_SUB, test_callback); // Test subscription
   rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, callback_motors);
   rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, callback_auto);
-  rosHandler.SubscribeTopic_Int64(AUTO_TOPIC, callback_targetColor);
+  rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
+
+
+  // Publisher
+  rosHandler.PublishTopic_String("/identify", "Yoshi");
 
   //UART Comm (OpenMV)
   HWSERIAL.begin(115200);
@@ -171,6 +199,7 @@ void setup() {
   }
 
   motorClock.setFrequency(400);    
+  serialHeartbeat.setFrequency(1);
   
   //wait 2 seconds
   delay(2000);
@@ -216,6 +245,10 @@ void callback_targetColor(int64_t value){
 }
 
 void loop() {
+  if(serialHeartbeat.isReady()){
+    Serial.println("Hi!");
+  }
+
   rosHandler.Update();
 
   //reading Serial2 color coordinates (OpenMV) and pass them to PID

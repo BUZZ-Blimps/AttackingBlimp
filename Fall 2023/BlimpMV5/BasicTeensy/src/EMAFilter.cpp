@@ -1,12 +1,12 @@
 #include "EMAFilter.h"
 #include "Arduino.h"
 
-EMAFilter::EMAFilter(double newAlpha) {
+void EMAFilter::Init(double newAlpha) {
     this->alpha = newAlpha;
     this->last = 0;
 }
 
-EMAFilter::EMAFilter() {
+void EMAFilter::Init() {
   this->alpha = 1;
   this->last = 0;
 }

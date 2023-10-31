@@ -5,7 +5,7 @@ using namespace BLA;
 
 class GyroEKF {
     public:
-    GyroEKF();
+    void Init();
     void predict(float dt);
     void updateGyro(float gyrox, float gyroy, float gyroz);
     void updateAccel(float accx, float accy, float accz);

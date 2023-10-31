@@ -4,6 +4,12 @@
         "functional": "cpp",
         "system_error": "cpp",
         "typeinfo": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "*.tcc": "cpp",
+        "unordered_map": "cpp",
+        "istream": "cpp",
+        "numeric": "cpp",
+        "ostream": "cpp",
+        "sstream": "cpp"
     }
 }

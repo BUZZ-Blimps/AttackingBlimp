@@ -5,8 +5,8 @@ class EMAFilter {
     double alpha;
     
     public:
-    EMAFilter(double alpha);
-    EMAFilter();
+    void Init(double alpha);
+    void Init();
     void setAlpha(double alpha);
     void setInitial(double initial);
     double filter(double current);

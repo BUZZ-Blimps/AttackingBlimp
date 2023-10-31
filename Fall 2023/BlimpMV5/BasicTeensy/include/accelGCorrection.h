@@ -5,7 +5,7 @@ using namespace BLA;
 
 class AccelGCorrection {
     public:
-    AccelGCorrection();
+    void Init();
     void updateData(float accX, float accY, float accZ, float pitch, float roll);
 
     float ax = 0;

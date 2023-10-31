@@ -5,7 +5,7 @@ using namespace BLA;
 
 class BaroAccKF {
   public:
-  BaroAccKF();
+  void Init();
   void predict(float dt);
   void updateBaro(float baro);
   void updateAccel(float acc);
