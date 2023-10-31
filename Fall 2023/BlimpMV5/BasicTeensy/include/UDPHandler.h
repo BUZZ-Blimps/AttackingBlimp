@@ -20,9 +20,9 @@ class UDPHandler{
         String StringLength(String variable, unsigned int numDigits);
 
         // ========== Connection parameters ==========
-        // const char* wifi_ssid = "Adams iphone";
-        // const char* wifi_password = "eeeeeeee";
-        // const char* bridgeIP = "172.20.10.14";
+        //const char* wifi_ssid = "Adams iphone";
+        //const char* wifi_password = "eeeeeeee";
+        //const char* bridgeIP = "172.20.10.14";
 
         //const char* wifi_ssid = "corelab-superman";
         //const char* wifi_password = "georgesandor";
@@ -32,8 +32,8 @@ class UDPHandler{
         const char* wifi_password = "jollypiano265";
         const char* bridgeIP = "192.168.0.203";
 
-        // const char* UDP_port = "64209";
-        const char* UDP_port = "5010";
+        const char* UDP_port = "64209";
+        // const char* UDP_port = "5010";
 
         const char flag_UDPConnectionData = 'C';
         const char flag_UDPMessage = 'M';

@@ -6,7 +6,7 @@ from functools import partial
 #from Bridge import Bridge
 from pydoc import locate
 
-from std_msgs.msg import Float64MultiArray, Bool, String, Float64
+from std_msgs.msg import Float64MultiArray, Bool, String, Float64, Int64
 
 class BlimpNode(Node):
     def __init__(self, IP, name, func_sendTopicToBlimp):
@@ -22,7 +22,8 @@ class BlimpNode(Node):
             0: Float64MultiArray,
             1: Bool,
             2: String,
-            3: Float64
+            3: Float64,
+            4: Int64
         }
 
         self.topicBufferSize = 3
@@ -76,6 +77,8 @@ class BlimpNode(Node):
             topicMessage = self.ParseROSMessage_String(message)
         elif topicType == Float64:
             topicMessage = self.ParseROSMessage_Float64(message)
+        elif topicType == Int64:
+            topicMessage = self.ParseROSMessage_Int64(message)
 
         self.func_sendTopicToBlimp(self, topicName, topicTypeInt, topicMessage)
 
@@ -95,6 +98,10 @@ class BlimpNode(Node):
         return strMessage
 
     def ParseROSMessage_Float64(self, message):
+        strMessage = str(message.data)
+        return strMessage
+
+    def ParseROSMessage_Int64(self, message):
         strMessage = str(message.data)
         return strMessage
 
@@ -124,6 +131,8 @@ class BlimpNode(Node):
             rosMessage = self.ParseMessage_String(topicData)
         elif topicType == Float64:
             rosMessage = self.ParseMessage_Float64(topicData)
+        elif topicType == Int64:
+            rosMessage = self.ParseMessage_Int64(topicData)
         publisher.publish(rosMessage)
         #print("Node (",self.name,") published topic (",topicNameExt,"): ",rosMessage.data,sep='')
         #print("Type:",type(rosMessage))
@@ -157,5 +166,11 @@ class BlimpNode(Node):
     def ParseMessage_Float64(self, topicData):
         value = float(topicData)
         rosMessage = Float64()
+        rosMessage.data = value
+        return rosMessage
+    
+    def ParseMessage_Int64(self, topicData):
+        value = long(topicData)
+        rosMessage = Int64()
         rosMessage.data = value
         return rosMessage

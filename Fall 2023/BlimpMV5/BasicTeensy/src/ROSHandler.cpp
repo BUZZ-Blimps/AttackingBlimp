@@ -1,5 +1,6 @@
 #include "ROSHandler.h"
 #include "NonBlockingTimer.h"
+#include <stdlib.h>
 
 using namespace std;
 using namespace std::placeholders;
@@ -20,7 +21,7 @@ void ROSHandler::Update(){
     }
 }
 
-void ROSHandler::SubscribeTopic_Float64MultiArray(String topicName, function<void(int, float*)> callback){
+void ROSHandler::SubscribeTopic_Float64MultiArray(String topicName, function<void(vector<double>)> callback){
     function<void(String)> genericCallback = bind(&ROSHandler::ParseTopic_Float64MultiArray, this, callback, _1);
     SubscribeTopic(topicName, type_Float64MultiArray, genericCallback);
 }
@@ -34,15 +35,21 @@ void ROSHandler::SubscribeTopic_String(String topicName, function<void(String)> 
     SubscribeTopic(topicName, type_String, genericCallback);
 }
 
-void ROSHandler::SubscribeTopic_Float64(String topicName, function<void(float)> callback){
+void ROSHandler::SubscribeTopic_Float64(String topicName, function<void(double)> callback){
     function<void(String)> genericCallback = bind(&ROSHandler::ParseTopic_Float64, this, callback, _1);
     SubscribeTopic(topicName, type_Float64, genericCallback);
 }
 
-void ROSHandler::PublishTopic_Float64MultiArray(String topicName, int numValues, float* values){
+void ROSHandler::SubscribeTopic_Int64(String topicName, function<void(int64_t)> callback){
+    function<void(String)> genericCallback = bind(&ROSHandler::ParseTopic_Int64, this, callback, _1);
+    SubscribeTopic(topicName, type_Int64, genericCallback);
+}
+
+void ROSHandler::PublishTopic_Float64MultiArray(String topicName, vector<double> values){
+    int numValues = values.size();
     String data = numValues + ",";
     for(int i=0; i<numValues; i++){
-        data += String(values[i]) + ",";
+        data += DoubleToString(values[i]) + ",";
     }
     PublishTopic(topicName, type_Float64MultiArray, data);
 }
@@ -57,9 +64,14 @@ void ROSHandler::PublishTopic_String(String topicName, String value){
     PublishTopic(topicName, type_String, data);
 }
 
-void ROSHandler::PublishTopic_Float64(String topicName, float value){
-    String data = String(value);
+void ROSHandler::PublishTopic_Float64(String topicName, double value){
+    String data = DoubleToString(value);
     PublishTopic(topicName, type_Float64, data);
+}
+
+void ROSHandler::PublishTopic_Int64(String topicName, int64_t value){
+    String data = String(value);
+    PublishTopic(topicName, type_Int64, data);
 }
 
 void ROSHandler::callback_UDPRecvMsg(String message){
@@ -90,7 +102,7 @@ void ROSHandler::callback_UDPRecvMsg(String message){
 
 void ROSHandler::SendListSubscribedTopics(){
     int numSubscribedTopics = map_genericCallbackFunctions.size();
-    String message = String(numSubscribedTopics);
+    String message = PadInt(numSubscribedTopics,2);
     for(auto iter = map_genericCallbackFunctions.begin(); iter != map_genericCallbackFunctions.end(); iter++){
         String topicID = iter->first;
         String topicName = topicID.substring(0, topicID.length()-1);
@@ -122,11 +134,11 @@ void ROSHandler::PublishTopic(String topicName, MessageType topicType, String da
     udpHandler.SendUDP(flag_publish, message);
 }
 
-void ROSHandler::ParseTopic_Float64MultiArray(function<void(int, float*)> callback, String data){
+void ROSHandler::ParseTopic_Float64MultiArray(function<void(vector<double>)> callback, String data){
     const char floatDelimiter = ',';
 
     int numValues = -1;
-    float* values = nullptr;
+    vector<double> values;
     int nextValueIndex = 0;
 
     // Ensure data has ending delimiter
@@ -138,22 +150,18 @@ void ROSHandler::ParseTopic_Float64MultiArray(function<void(int, float*)> callba
         if(data.charAt(index) == floatDelimiter){
             String currentStr = data.substring(prevCommaIndex+1, index);
             prevCommaIndex = index;
-            float currentFloat = currentStr.toFloat();
+            double currentValue = StringToDouble(currentStr);
             if(numValues == -1){
-                numValues = (int) currentFloat;
-                values = new float[numValues]; // Dynamically allocated memory
+                numValues = (int) currentValue;
             }else{
-                values[nextValueIndex] = currentFloat;
+                values[nextValueIndex] = currentValue;
                 nextValueIndex++;
             }
         }
     }
 
     // Call callback
-    callback(numValues, values);
-
-    // DELETE dynamically alloated memory
-    delete[] values; 
+    callback(values);
 }
 
 void ROSHandler::ParseTopic_Bool(function<void(bool)> callback, String data){
@@ -170,25 +178,74 @@ void ROSHandler::ParseTopic_String(function<void(String)> callback, String data)
     callback(value);
 }
 
-void ROSHandler::ParseTopic_Float64(function<void(float)> callback, String data){
-    float value = data.toFloat();
-    
+void ROSHandler::ParseTopic_Float64(function<void(double)> callback, String data){
+    double value = StringToDouble(data);
+
+    //Call callback
+    callback(value);
+}
+
+void ROSHandler::ParseTopic_Int64(function<void(int64_t)> callback, String data){
+    int64_t value = strtoll(data.c_str(), nullptr, 10);
+
     //Call callback
     callback(value);
 }
 
 String ROSHandler::StringLength(String variable, unsigned int numDigits){
-    int length = variable.length();
-    String lengthStr = String(length);
-    unsigned int lengthLengthStr = lengthStr.length();
-    if(lengthLengthStr > numDigits){
+    return PadInt(variable.length(), numDigits);
+}
+
+String ROSHandler::PadInt(int variable, unsigned int numDigits){
+    String varStr = String(variable);
+    unsigned int lengthVarStr = varStr.length();
+    if(lengthVarStr > numDigits){
         // ERROR
         return "ERROR";
     }else{
         // Add zeros
-        for(unsigned int i=0; i<(numDigits-lengthLengthStr); i++){
-            lengthStr = "0" + lengthStr;
+        for(unsigned int i=0; i<(numDigits-lengthVarStr); i++){
+            varStr = "0" + varStr;
         }
-        return lengthStr;
+        return varStr;
     }
+}
+
+double ROSHandler::StringToDouble(String str){
+    if(str.length()==0) return 0;
+
+    int strIndex = 0;
+    double signMult = 1;
+    if(str.charAt(0) == '-'){
+        signMult = -1;
+        strIndex = 1;
+    }
+
+    double value = 0;
+    bool period = false;
+    int decimalPlace = -1;
+    for(unsigned int i=strIndex; i<str.length(); i++){
+        char currentChar = str.charAt(i);
+        if(currentChar == '.'){
+            period = true;
+        }else if('0' <= currentChar && currentChar <= '9'){
+            if(!period){
+                value = 10*value + (currentChar - '0');
+            }else{
+                value += ((currentChar - '0')*pow10(decimalPlace));
+                decimalPlace--;
+            }
+        }else{
+            // ERROR
+            return 0;
+        }
+    }
+
+    return value;
+}
+
+String ROSHandler::DoubleToString(double value){
+    char buff[30];
+    sprintf(buff, "%f", value);
+    return String(buff);
 }
