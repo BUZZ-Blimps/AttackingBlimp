@@ -39,7 +39,7 @@ enum autonomousStates {
   autonomous,
   manual,
   lost,
-}autonomousState;
+} autonomousState;
 
 const char* autonomousStatesNames[] = {IDNAME(autonomous), IDNAME(manual), IDNAME(lost)};
 const char* autonomousStatesStr[] = {"autonomous", "manual", "lost"};
@@ -88,7 +88,6 @@ EMAFilter verticalAccelFilter;
 EMAFilter baroOffset;
 //roll offset computation from imu
 EMAFilter rollOffset;
-
 
 // PIDs
 PID yawRatePID(3,0,0);  
@@ -145,10 +144,11 @@ void callback_motors(vector<double> values);
 void callback_auto(bool value);
 void callback_targetColor(int64_t value);
 
+unsigned long identify_time;
+
 void setup() {
   Serial.begin(115200);
   rosHandler.Init();
-
 
   // Initialize motors, gimbals and sensors
   //pre process for accel before vertical kalman filter
@@ -178,18 +178,19 @@ void setup() {
   // Subscriber Setup //
 
   //rosHandler.SubscribeTopic_String(TEST_SUB, test_callback); // Test subscription
-  // rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, callback_motors);
-  // rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, callback_auto);
-  // rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
-
+  rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, callback_motors);
+  rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, callback_auto);
+  rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
 
   // Publisher
   rosHandler.PublishTopic_String("/identify", "Yoshi");
+  identify_time = micros();
 
   //UART Comm (OpenMV)
   HWSERIAL.begin(115200);
   Serial.println("Color tracking program started");
   delay(2000);
+
   //initializations
   heartbeat.setFrequency(20);
 
@@ -198,14 +199,14 @@ void setup() {
       feedbackData[i] = 0;
   }
 
-  motorClock.setFrequency(400);    
+  motorClock.setFrequency(400);
   serialHeartbeat.setFrequency(1);
   
   //wait 2 seconds
   delay(2000);
+
+  rosHandler.PublishTopic_String("log", "Teensy booted and connected to network.");
 }
-
-
 
 /*test_callback
  * Description: Callback intended to test topic receiving from ROS basestation.
@@ -232,12 +233,12 @@ void callback_motors(vector<double> values)
 /*autonomous callback
  * Description: Callback intended to convert Float64MultiArray messages to motor commands 
  */
-void callback_auto(bool value){
-  if(value){
-    autonomousState = autonomous;
-  }else{
-    autonomousState = manual;
-  }
+void callback_auto(bool value) {
+
+  autonomousState = value ? autonomous : manual;
+
+  std::string msg = std::string("Switched to ").append(value ? "Autonomous" : "Manual").append(" mode.");
+  rosHandler.PublishTopic_String("log", msg.c_str());
 }
 
 void callback_targetColor(int64_t value){
@@ -245,11 +246,15 @@ void callback_targetColor(int64_t value){
 }
 
 void loop() {
-  if(serialHeartbeat.isReady()){
-    Serial.println("Hi!");
-  }
-
   rosHandler.Update();
+
+  unsigned long now = micros();
+  if (now - identify_time > 1.0*MICROS_TO_SEC) {
+    // Publisher
+    rosHandler.PublishTopic_String("/identify", "Yoshi");
+
+    identify_time = now;
+  }
 
   //reading Serial2 color coordinates (OpenMV) and pass them to PID
   /*

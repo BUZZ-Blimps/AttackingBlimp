@@ -8,11 +8,11 @@ import select
 
 class UDPHelper:
     def __init__(self):
-        self.IP = "192.168.0.203" # core blimp
+        self.IP = "192.168.0.203" # Laptop 3
         #self.IP = "172.20.10.14" # Adams iphone
         #self.IP = "10.42.0.158" # corelab-superman
-        #self.port = 64209
-        self.port = 5010
+        self.port = 6969
+        # self.port = 5010
 
         #Setup UDP socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -20,7 +20,7 @@ class UDPHelper:
         self.sock.bind((self.IP, self.port))
         self.sock.setblocking(False)
         # self.sock.settimeout(2)
-        print("Initialized UDP socket.")
+        print("Initialized UDP socket on {}:{}".format(self.IP, self.port))
 
         self.looping = False
         self.callback_UDPRecvMsg = None
@@ -56,6 +56,9 @@ class UDPHelper:
             return
         else:
             message = data.decode(encoding='utf-8', errors='ignore')
+
+            print("Received message \"",message,"\" from ",address,".",sep='')
+            
             #print("Received message \"",message,"\" from ",address,".",sep='')
             if (message[0:2] == ":)"):
                 message = message[2:]

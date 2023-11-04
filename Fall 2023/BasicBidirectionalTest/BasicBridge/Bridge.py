@@ -5,7 +5,6 @@ from NonBlockingTimer import NonBlockingTimer
 from functools import partial
 import rclpy
 
-
 class Bridge:
     def __init__(self):
         # UDPHelper
@@ -16,14 +15,14 @@ class Bridge:
         # Maps
         self.map_IP_BlimpNode: dict[str,BlimpNode] = {}
         self.map_IP_BlimpName: dict[str,str] = {
-            "192.168.0.203": "Yoshi"
+            "192.168.0.100": "Yoshi"
         }
 
         self.flag_subscribe = 'S'
         self.flag_publish = 'P'
 
         self.startTime = time()
-        self.timeout_blimpNodeHeartbeat = 3 # [s]
+        self.timeout_blimpNodeHeartbeat = 5 # [s]
 
         self.timer_printBlimps = NonBlockingTimer(frequency=1)
     
@@ -66,6 +65,7 @@ class Bridge:
                     for topicName in blimpNode.map_topicName_publisher.keys():
                         print(topicName,", ",sep='',end='')
                     print()
+                    
         # Spin all blimp nodes
         for IP in self.map_IP_BlimpNode.keys():
             blimpNode = self.map_IP_BlimpNode[IP]

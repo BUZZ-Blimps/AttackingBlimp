@@ -1,6 +1,8 @@
 #include "ROSHandler.h"
 #include "NonBlockingTimer.h"
-#include <stdlib.h>
+#include <stdexcept>
+#include <algorithm>
+#include <Arduino.h>
 
 using namespace std;
 using namespace std::placeholders;
@@ -135,6 +137,10 @@ void ROSHandler::PublishTopic(String topicName, MessageType topicType, String da
 }
 
 void ROSHandler::ParseTopic_Float64MultiArray(function<void(vector<double>)> callback, String data){
+
+    // Serial.print("Beginning parsing float64 multiarray... Data:\n");
+    // Serial.print(data);
+    // Serial.print("\n");
     const char floatDelimiter = ',';
 
     int numValues = -1;
@@ -147,19 +153,27 @@ void ROSHandler::ParseTopic_Float64MultiArray(function<void(vector<double>)> cal
     // Iterate through comma delimited float array
     int prevCommaIndex = -1;
     for(unsigned int index=0; index<data.length(); index++){
-        if(data.charAt(index) == floatDelimiter){
-            String currentStr = data.substring(prevCommaIndex+1, index);
-            prevCommaIndex = index;
-            double currentValue = StringToDouble(currentStr);
-            if(numValues == -1){
-                numValues = (int) currentValue;
-            }else{
-                values[nextValueIndex] = currentValue;
-                nextValueIndex++;
-            }
+        {
+            // Serial.print("\nIndex: ");
+            // Serial.print(index);
+            // Serial.print("\n");
+            // Serial.print("Char at index: ");
+            // Serial.print(data.charAt(index));
+            if(data.charAt(index) == floatDelimiter){
+                String currentStr = data.substring(prevCommaIndex+1, index);
+                prevCommaIndex = index;
+                double currentValue = StringToDouble(currentStr);
+                
+                if(numValues == -1){
+                    numValues = (int) currentValue;
+                }else{
+                    values.push_back(currentValue);
+                    nextValueIndex++;
+                }
+            }       
         }
     }
-
+    //Serial.print("Calling callback function...\n");
     // Call callback
     callback(values);
 }
@@ -186,10 +200,12 @@ void ROSHandler::ParseTopic_Float64(function<void(double)> callback, String data
 }
 
 void ROSHandler::ParseTopic_Int64(function<void(int64_t)> callback, String data){
+    if(!any_of(data.begin(),data.end(),::isalpha)){
     int64_t value = strtoll(data.c_str(), nullptr, 10);
 
     //Call callback
     callback(value);
+    }
 }
 
 String ROSHandler::StringLength(String variable, unsigned int numDigits){
@@ -212,36 +228,49 @@ String ROSHandler::PadInt(int variable, unsigned int numDigits){
 }
 
 double ROSHandler::StringToDouble(String str){
+    // Serial.print("\nConverting string to double... Data: ");
+    // Serial.print(str);
+    // Serial.print("\n");
     if(str.length()==0) return 0;
-
-    int strIndex = 0;
-    double signMult = 1;
-    if(str.charAt(0) == '-'){
-        signMult = -1;
-        strIndex = 1;
+    else if(any_of(str.begin(),str.end(),::isalpha)){
+        Serial.print("UDP Message corrupted, throwing out data");
+        return 0;
     }
-
-    double value = 0;
-    bool period = false;
-    int decimalPlace = -1;
-    for(unsigned int i=strIndex; i<str.length(); i++){
-        char currentChar = str.charAt(i);
-        if(currentChar == '.'){
-            period = true;
-        }else if('0' <= currentChar && currentChar <= '9'){
-            if(!period){
-                value = 10*value + (currentChar - '0');
-            }else{
-                value += ((currentChar - '0')*pow10(decimalPlace));
-                decimalPlace--;
-            }
-        }else{
-            // ERROR
-            return 0;
-        }
-    }
-
+    double value = stod(&str[0]);
+    // Serial.print("Returning value: ");
+    // Serial.print(value);
+    // Serial.print("\n");
     return value;
+        // int strIndex = 0;
+        // double signMult = 1;
+        // if(str.charAt(0) == '-'){
+        //     signMult = -1;
+        //     strIndex = 1;
+        // }
+        // Serial.print("\nSign successfully parsed, ");
+
+        // double value = 0;
+        // bool period = false;
+        // int decimalPlace = -1;
+        // for(unsigned int i=strIndex; i<str.length(); i++){
+        //     char currentChar = str.charAt(i);
+        //     if(currentChar == '.'){
+        //         period = true;
+        //     }else if('0' <= currentChar && currentChar <= '9'){
+        //         Serial.print("no period found, ");
+        //         if(!period){
+        //             value = 10*value + (currentChar - '0');
+        //         }else{
+        //             value += ((currentChar - '0')*pow10(decimalPlace));
+        //             decimalPlace--;
+        //         }
+        //     }else{
+        //         // ERROR
+        //         return 0;
+        //     }
+        // }
+
+        // return value;
 }
 
 String ROSHandler::DoubleToString(double value){

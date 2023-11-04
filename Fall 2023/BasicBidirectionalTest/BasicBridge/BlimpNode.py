@@ -10,6 +10,11 @@ from std_msgs.msg import Float64MultiArray, Bool, String, Float64, Int64
 
 class BlimpNode(Node):
     def __init__(self, IP, name, func_sendTopicToBlimp):
+        
+        super().__init__(node_name=name, namespace=name)
+
+        print('Spun up BlimpNode with name {}'.format(name))
+
         self.IP = IP
         self.name = name
         self.func_sendTopicToBlimp = func_sendTopicToBlimp
@@ -28,21 +33,22 @@ class BlimpNode(Node):
 
         self.topicBufferSize = 3
 
-        super().__init__(self.name)
-    
     def ParseSubscribeMessage(self, message):
-        msgIndex = 0
-        numTopics = int(message[msgIndex:msgIndex+2])
-        msgIndex += 2
-        for i in range(numTopics):
-            # Parse message for each topic -> topicName, topicType
-            topicNameLength = int(message[msgIndex:msgIndex+2])
+        try:
+            msgIndex = 0
+            numTopics = int(message[msgIndex:msgIndex+2])
             msgIndex += 2
-            topicName = message[msgIndex:msgIndex+topicNameLength]
-            msgIndex += topicNameLength
-            topicTypeInt = int(message[msgIndex:msgIndex+1])
-            msgIndex += 1
-            self.CheckSubscription(topicName, topicTypeInt)
+            for i in range(numTopics):
+                # Parse message for each topic -> topicName, topicType
+                topicNameLength = int(message[msgIndex:msgIndex+2])
+                msgIndex += 2
+                topicName = message[msgIndex:msgIndex+topicNameLength]
+                msgIndex += topicNameLength
+                topicTypeInt = int(message[msgIndex:msgIndex+1])
+                msgIndex += 1
+                self.CheckSubscription(topicName, topicTypeInt)
+        except (ValueError):
+            print("Corrupt UDP subscription packet, throwing out message.")
     
     def CheckSubscription(self, topicName, topicTypeInt):
         # If subscription doesn't exist, create it
@@ -52,13 +58,19 @@ class BlimpNode(Node):
                 print("Invalid topic type subscribed: ",topicName," (",topicTypeInt,")",sep='')
                 return
             topicType = self.map_topicTypeInt_topicType[topicTypeInt]
+
             # Create generic callback with topicName and topicType
             genericCallback = partial(self.callback_Subscription, topicName, topicTypeInt)
+
             # Create new subscription with generic callback
             print("New subscription type (",topicType,") - name (",topicName,")",sep='')
+
+            # newSubscription = self.create_subscription(topicType, topicName, genericCallback, self.topicBufferSize)
             newSubscription = self.create_subscription(topicType, topicName, genericCallback, self.topicBufferSize)
+
             # Save new subscription in map
             self.map_topicName_subscriber[topicName] = newSubscription
+
             print("Node (",self.name,") subscribed to topic (",topicName,")",sep='')
         else:
             print("Node (",self.name,") already subscribed to topic (",topicName,")",sep='')
@@ -106,36 +118,44 @@ class BlimpNode(Node):
         return strMessage
 
     def ParsePublishMessage(self, message):
-        topicNameLength = int(message[0:2])
-        topicName = message[2:2+topicNameLength]
-        topicTypeInt = int(message[2+topicNameLength:2+topicNameLength+1])
-        topicType = self.map_topicTypeInt_topicType[topicTypeInt]
-        topicData = message[2+topicNameLength+1:]
+        try:
+            topicNameLength = int(message[0:2])
+            topicName = message[2:2+topicNameLength]
+            topicTypeInt = int(message[2+topicNameLength:2+topicNameLength+1])
+            topicType = self.map_topicTypeInt_topicType[topicTypeInt]
+            topicData = message[2+topicNameLength+1:]
 
-        if topicName[0] == '/':
-            topicNameExt = "/" + self.name + topicName
-        else:
-            topicNameExt = "/" + self.name + "/" + topicName
+            # if topicName[0] == '/':
+            #     topicNameExt = "/" + self.name + topicName
+            # else:
+            #     topicNameExt = "/" + self.name + "/" + topicName
 
-        # If publisher doesn't exist, make it
-        if topicName not in self.map_topicName_publisher:
-            self.map_topicName_publisher[topicName] = self.create_publisher(topicType, topicNameExt, self.topicBufferSize)
-            print("Created publisher (",topicNameExt,") of type ",topicType,sep='')
-        publisher = self.map_topicName_publisher[topicName]
+            #Topic name will be scoped automatically by the node name (comment for Adam from Willie)
+            topicNameExt = topicName
 
-        if topicType == Float64MultiArray:
-            rosMessage = self.ParseMessage_Float64MultiArray(topicData)
-        elif topicType == Bool:
-            rosMessage = self.ParseMessage_Bool(topicData)
-        elif topicType == String:
-            rosMessage = self.ParseMessage_String(topicData)
-        elif topicType == Float64:
-            rosMessage = self.ParseMessage_Float64(topicData)
-        elif topicType == Int64:
-            rosMessage = self.ParseMessage_Int64(topicData)
-        publisher.publish(rosMessage)
-        #print("Node (",self.name,") published topic (",topicNameExt,"): ",rosMessage.data,sep='')
-        #print("Type:",type(rosMessage))
+            # If publisher doesn't exist, make it
+            if topicName not in self.map_topicName_publisher:
+                self.map_topicName_publisher[topicName] = self.create_publisher(topicType, topicNameExt, self.topicBufferSize)
+                print("Created publisher (",topicNameExt,") of type ",topicType,sep='')
+
+            publisher = self.map_topicName_publisher[topicName]
+
+            if topicType == Float64MultiArray:
+                rosMessage = self.ParseMessage_Float64MultiArray(topicData)
+            elif topicType == Bool:
+                rosMessage = self.ParseMessage_Bool(topicData)
+            elif topicType == String:
+                rosMessage = self.ParseMessage_String(topicData)
+            elif topicType == Float64:
+                rosMessage = self.ParseMessage_Float64(topicData)
+            elif topicType == Int64:
+                rosMessage = self.ParseMessage_Int64(topicData)
+            publisher.publish(rosMessage)
+
+            print("Node (",self.name,") published topic (",topicNameExt,"): ",rosMessage.data,sep='')
+            #print("Type:",type(rosMessage))
+        except(ValueError):
+            print("Corrupted UDP publisher packet, removing data")
 
     def ParseMessage_Float64MultiArray(self, topicData):
         # Split with comma delimiters

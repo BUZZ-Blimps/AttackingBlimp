@@ -30,18 +30,17 @@
 //constants
 #define MICROS_TO_SEC             1000000.0
 
-
 /* New Attack Blimp Params */
 
 // Define subscription topic names
 
 #define TEST_SUB            "testTopic"         // Testing subscription - type: String
-#define MULTIARRAY_TOPIC    "/Yoshi/motorCommands"     // For motor commands subscription - type: Float64MultiArray
-#define AUTO_TOPIC          "/Yoshi/auto"   // For autonomous state subscription - type: Bool
-#define COLOR_TOPIC          "/Yoshi/target_color"   // For autonomous state subscription - type: Bool
+#define MULTIARRAY_TOPIC    "motorCommands"     // For motor commands subscription - type: Float64MultiArray
+#define AUTO_TOPIC          "auto"              // For autonomous state subscription - type: Bool
+#define COLOR_TOPIC         "target_color"      // For autonomous state subscription - type: Bool
 
 // Define Published topic names
 
-#define TEST_PUB           "/Yoshi/TeensyTopic" // Testing publishing - type: String
-#define BLIMP_ID           "/Yoshi/WhoamI"      // Publish ID of blimp - type: String
-#define BLIMP_STATUS       "/Yoshi/state"       // Publish current state of blimp - type: Bool
+#define TEST_PUB           "TeensyTopic" // Testing publishing - type: String
+#define BLIMP_ID           "WhoamI"      // Publish ID of blimp - type: String
+#define BLIMP_STATUS       "state"       // Publish current state of blimp - type: Bool
