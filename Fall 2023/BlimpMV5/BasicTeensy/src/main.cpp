@@ -36,13 +36,13 @@ const char* stateNames[] = {IDNAME(searching), IDNAME(approach)};
 const char* stateStr[] = {"searching", "approach"};
 
 enum autonomousStates {
-  autonomous,
   manual,
+  autonomous,
   lost,
 } autonomousState;
 
-const char* autonomousStatesNames[] = {IDNAME(autonomous), IDNAME(manual), IDNAME(lost)};
-const char* autonomousStatesStr[] = {"autonomous", "manual", "lost"};
+const char* autonomousStatesNames[] = {IDNAME(manual), IDNAME(autonomous), IDNAME(lost)};
+const char* autonomousStatesStr[] = {"manual", "autonomous", "lost"};
 
 int targetColor = 2; 
 //r 0, g 1, b 2
@@ -199,7 +199,7 @@ void setup() {
       feedbackData[i] = 0;
   }
 
-  motorClock.setFrequency(400);
+  motorClock.setFrequency(30);
   serialHeartbeat.setFrequency(1);
   
   //wait 2 seconds
@@ -220,13 +220,19 @@ void setup() {
 // }
 
 
+double tempforward;
+double tempyaw;
+double tempup;
 /*multiarray_callback
  * Description: Callback intended to convert Float64MultiArray messages to motor commands 
  */
 void callback_motors(vector<double> values)
 {
+  tempforward = values[1];
+  tempyaw = values[0];
+  tempup = values[3];
   forwardInput = values[1];
-  yawInput = values[2];
+  yawInput = values[0];
   upInput = values[3];
 }
 
@@ -235,9 +241,9 @@ void callback_motors(vector<double> values)
  */
 void callback_auto(bool value) {
 
-  autonomousState = value ? autonomous : manual;
+  autonomousState = value ? manual : autonomous;
 
-  std::string msg = std::string("Switched to ").append(value ? "Autonomous" : "Manual").append(" mode.");
+  std::string msg = std::string("Switched to ").append(value ? "Manual" : "Autonomous").append(" mode.");
   rosHandler.PublishTopic_String("log", msg.c_str());
 }
 
@@ -441,20 +447,31 @@ void loop() {
       //upInput = atof(inputs[2].c_str());
 
       //safegaurd: if motor reads any command that is greater than 1, shut the motor off!!!
-      if (abs(forwardInput) >1.0 || abs(yawInput)>1.0 || abs(upInput)>1.0){
-        motorsOff = true;
-        Serial.println("Invalid motor input!!!!!");
-      }
-        
-      //Serial.println(forwardInput);
-      //Serial.println(yawInput);
-      //Serial.println(upInput);
-        
+
+      forwardInput = max(-1.00, min(1.00,forwardInput));
+      upInput = max(-1.00, min(1.00,upInput));
+      yawInput = max(-1.00, min(1.00,yawInput));
+
+      // if (abs(forwardInput) >1.0 || abs(yawInput)>1.0 || abs(upInput)>1.0){
+      //   motorsOff = true;
+      //   Serial.println("Invalid motor input!!!!!");
+      // }
+
+      Serial.println("\nMotor inputs: ");
+      Serial.print(yawInput);
+      Serial.print(",");
+      Serial.print(upInput);
+      Serial.print(",");
+      Serial.print(forwardInput);
+      Serial.print("\n");    
+
       //map controller input to yaw rate
       //Serial.println(yawInput);
-      upInput = 500*upInput;
-      forwardInput = 500*forwardInput;
-      yawInput = -yawInput*120;    //120 degrees per second
+      upInput = 500*tempup;
+      forwardInput = 500*tempforward;
+      yawInput = -tempyaw*120;    //120 degrees per second
+
+
 
       //Serial.println(yawInput);
     }
@@ -552,17 +569,18 @@ void loop() {
     motors.update(0,0,0,0);
   }
   else if (MOTORS_OFF == false && motorsOff == false) {
-    //Serial.println("after");
-    //Serial.println(yawInput);
-    //Serial.print(",");
-    //Serial.print(upInput);
-    //Serial.print(",");
-    //Serial.println(forwardInput);
+    // Serial.println("\nafter: ");
+    // Serial.println(yawInput);
+    // Serial.print(",");
+    // Serial.print(upInput);
+    // Serial.print(",");
+    // Serial.println(forwardInput);
 
     motors.update(0, forwardInput, upInput, yawPIDInput);
   } else {
     motors.update(0,0,0,0);
   }
+  motorsOff = false;
 
   // End Main Loop
 }

@@ -41,6 +41,6 @@
 
 // Define Published topic names
 
-#define TEST_PUB           "TeensyTopic" // Testing publishing - type: String
-#define BLIMP_ID           "WhoamI"      // Publish ID of blimp - type: String
-#define BLIMP_STATUS       "state"       // Publish current state of blimp - type: Bool
+// #define TEST_PUB           "TeensyTopic" // Testing publishing - type: String
+// #define BLIMP_ID           "WhoamI"      // Publish ID of blimp - type: String
+// #define BLIMP_STATUS       "state"       // Publish current state of blimp - type: Bool
