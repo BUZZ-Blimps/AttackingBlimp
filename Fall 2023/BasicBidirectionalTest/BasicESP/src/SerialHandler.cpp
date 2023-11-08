@@ -24,7 +24,12 @@ void SerialHandler::SendSerial(char flag, String message){
     // Add message to bufferSerial_out
     bufferSerial_out += flag;
     bufferSerial_out += message;
+    // bufferSerial_out += 'L';
+    // bufferSerial_out += char(message.length());
     bufferSerial_out += delimiter_serial;
+    
+
+    // TO-DO: ADD A WAY TO DETECT IF OUR BUFFER GETS TOO BIG (DATA IS LOSING)
 }
 
 // Parses messages along Serial

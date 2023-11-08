@@ -457,13 +457,13 @@ void loop() {
       //   Serial.println("Invalid motor input!!!!!");
       // }
 
-      Serial.println("\nMotor inputs: ");
-      Serial.print(yawInput);
-      Serial.print(",");
-      Serial.print(upInput);
-      Serial.print(",");
-      Serial.print(forwardInput);
-      Serial.print("\n");    
+      // Serial.println("\nMotor inputs: ");
+      // Serial.print(forwardInput);
+      // Serial.print(",");
+      // Serial.print(upInput);
+      // Serial.print(",");
+      // Serial.print(yawInput);
+      // Serial.print("\n");    
 
       //map controller input to yaw rate
       //Serial.println(yawInput);

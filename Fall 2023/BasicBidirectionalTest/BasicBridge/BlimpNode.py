@@ -98,7 +98,7 @@ class BlimpNode(Node):
         values = message.data
         strMessage = str(len(values)) + ","
         for value in values:
-            strMessage += str(value) + ","
+            strMessage += "{:.3f}".format(value) + ","
         return strMessage
 
     def ParseROSMessage_Bool(self, message):

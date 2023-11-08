@@ -42,6 +42,7 @@ void SerialHandler::ParseMessages(){
             bufferSerial1_in = "";
             ParseMessage(message);
         }
+        
     }
 }
 

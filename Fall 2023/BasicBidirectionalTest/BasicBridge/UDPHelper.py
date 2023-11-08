@@ -11,7 +11,8 @@ class UDPHelper:
         self.IP = "192.168.0.203" # Laptop 3
         #self.IP = "172.20.10.14" # Adams iphone
         #self.IP = "10.42.0.158" # corelab-superman
-        self.port = 6969
+        #self.port = 6969
+        self.port = 64209
         # self.port = 5010
 
         #Setup UDP socket

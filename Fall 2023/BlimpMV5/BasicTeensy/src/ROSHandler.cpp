@@ -138,7 +138,7 @@ void ROSHandler::PublishTopic(String topicName, MessageType topicType, String da
 
 void ROSHandler::ParseTopic_Float64MultiArray(function<void(vector<double>)> callback, String data){
 
-    // Serial.print("Beginning parsing float64 multiarray... Data:\n");
+    // Serial.print("Beginning parsing float64 multiarray... Data: \n");
     // Serial.print(data);
     // Serial.print("\n");
     const char floatDelimiter = ',';
@@ -162,6 +162,7 @@ void ROSHandler::ParseTopic_Float64MultiArray(function<void(vector<double>)> cal
             if(data.charAt(index) == floatDelimiter){
                 String currentStr = data.substring(prevCommaIndex+1, index);
                 prevCommaIndex = index;
+
                 double currentValue = StringToDouble(currentStr);
                 
                 if(numValues == -1){
@@ -233,7 +234,7 @@ double ROSHandler::StringToDouble(String str){
     // Serial.print("\n");
     if(str.length()==0) return 0;
     else if(any_of(str.begin(),str.end(),::isalpha)){
-        Serial.print("UDP Message corrupted, throwing out data");
+        Serial.print("UDP Message corrupted, throwing out data\n");
         return 0;
     }
     double value = stod(&str[0]);
