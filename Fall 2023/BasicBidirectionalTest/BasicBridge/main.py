@@ -2,6 +2,9 @@ import rclpy
 from Bridge import Bridge
 import traceback
 import time
+import os
+
+current_pid = os.getpid()
 
 def main(args=None):
     rclpy.init(args=args)

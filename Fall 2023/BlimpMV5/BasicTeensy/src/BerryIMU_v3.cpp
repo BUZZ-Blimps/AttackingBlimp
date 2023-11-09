@@ -145,6 +145,7 @@ void BerryIMU_v3::IMU_read(){
   accRaw[0] = (int)(buff[0] | (buff[1] << 8));
   accRaw[1] = (int)(buff[2] | (buff[3] << 8));
   accRaw[2] = (int)(buff[4] | (buff[5] << 8));
+
   // Bit shift done by 256^2 = 65536 and 65536/2 = 32768
   if (accRaw[0] >= 32768) accRaw[0] = accRaw[0] - 65536;
   if (accRaw[1] >= 32768) accRaw[1] = accRaw[1] - 65536;
@@ -164,6 +165,14 @@ void BerryIMU_v3::IMU_read(){
   AccYraw = (accRaw[0] * 0.244) / 1000.0;
   AccXraw = -(accRaw[1] * 0.244) / 1000.0;
   AccZraw = (accRaw[2] * 0.244) / 1000.0;
+
+  // Serial.print("\nIMU Data: \n");
+  // Serial.print(AccXraw);
+  // Serial.print(',');
+  // Serial.print(AccYraw);
+  // Serial.print(',');
+  // Serial.print(AccZraw);
+  // Serial.print('\n');
 
   //  //Convert Accel raw to G's when FS is +/- 16g
   //  AccXraw = (accRaw[0]* 0.488)/1000;

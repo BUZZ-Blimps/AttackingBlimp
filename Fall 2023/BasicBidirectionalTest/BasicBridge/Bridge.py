@@ -5,6 +5,7 @@ from NonBlockingTimer import NonBlockingTimer
 from functools import partial
 import rclpy
 
+
 class Bridge:
     def __init__(self):
         # UDPHelper
@@ -15,8 +16,9 @@ class Bridge:
         # Maps
         self.map_IP_BlimpNode: dict[str,BlimpNode] = {}
         self.map_IP_BlimpName: dict[str,str] = {
-            "192.168.0.78": "Yoshi",
-            "192.168.0.212" : "Geoph"
+            "192.168.0.211": "Yoshi",
+            "192.168.0.212" : "Geoph",
+            "192.168.0.213" : "ThisGuy"
         }
 
         self.flag_subscribe = 'S'
@@ -66,9 +68,8 @@ class Bridge:
                     for topicName in blimpNode.map_topicName_publisher.keys():
                         print(topicName,", ",sep='',end='')
                     print()
-                    
-        # Spin all blimp nodes
-        for IP in self.map_IP_BlimpNode.keys():
+
+        for IP in list(self.map_IP_BlimpNode):
             blimpNode = self.map_IP_BlimpNode[IP]
             rclpy.spin_once(blimpNode)
 

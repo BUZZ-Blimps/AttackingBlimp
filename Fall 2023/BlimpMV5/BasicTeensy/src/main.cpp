@@ -44,8 +44,8 @@ enum autonomousStates {
 const char* autonomousStatesNames[] = {IDNAME(manual), IDNAME(autonomous), IDNAME(lost)};
 const char* autonomousStatesStr[] = {"manual", "autonomous", "lost"};
 
-int targetColor = 2; 
-//r 0, g 1, b 2
+int targetColor = 0; 
+// blue = 0, red = 1
 
 //motor pins
 const int LMPIN = 9; // 26 is pin for Left motor object
@@ -183,7 +183,7 @@ void setup() {
   rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
 
   // Publisher
-  rosHandler.PublishTopic_String("/identify", "Yoshi");
+  rosHandler.PublishTopic_String("/identify", BLIMP_ID);
   identify_time = micros();
 
   //UART Comm (OpenMV)
@@ -228,26 +228,41 @@ double tempup;
  */
 void callback_motors(vector<double> values)
 {
-  tempforward = values[1];
-  tempyaw = values[0];
-  tempup = values[3];
-  forwardInput = values[1];
-  yawInput = values[0];
-  upInput = values[3];
+  if (values.size() == 4){
+    tempforward = values[1];
+    tempyaw = values[0];
+    tempup = values[3];
+    forwardInput = values[1];
+    yawInput = values[0];
+    upInput = values[3];
+  }
 }
 
 /*autonomous callback
  * Description: Callback intended to convert Float64MultiArray messages to motor commands 
  */
 void callback_auto(bool value) {
-
+  int newState = value ? manual : autonomous;
+  if (newState == manual && autonomousState == autonomous) {
+    std::string msg = std::string("Going Manual for a Bit...");
+    rosHandler.PublishTopic_String("log", msg.c_str());
+  }
+  else if (newState == autonomous && autonomousState == manual) {
+    std::string msg = std::string("Activating Auto Mode");
+    rosHandler.PublishTopic_String("log", msg.c_str());
+  }
   autonomousState = value ? manual : autonomous;
-
-  std::string msg = std::string("Switched to ").append(value ? "Manual" : "Autonomous").append(" mode.");
-  rosHandler.PublishTopic_String("log", msg.c_str());
 }
 
 void callback_targetColor(int64_t value){
+  if (targetColor == 0 && value == 1) {
+    std::string msg = std::string("Target Color chnaged to Red");
+    rosHandler.PublishTopic_String("log", msg.c_str());
+  }
+  else if (targetColor == 1 && value == 0) {
+    std::string msg = std::string("Target Color chnaged to Blue");
+    rosHandler.PublishTopic_String("log", msg.c_str());
+  }
   targetColor = value;
 }
 
@@ -257,7 +272,7 @@ void loop() {
   unsigned long now = micros();
   if (now - identify_time > 1.0*MICROS_TO_SEC) {
     // Publisher
-    rosHandler.PublishTopic_String("/identify", "Yoshi");
+    rosHandler.PublishTopic_String("/identify", BLIMP_ID);
 
     identify_time = now;
   }
@@ -289,15 +304,18 @@ void loop() {
   //Serial1.read();
 
   while (Serial2.available()) {
+    // Serial.print("Entering serial process");
     if (Serial2.find(startDelimiter)) {
       s = Serial2.readStringUntil(endDelimiter);
-      //Serial.println(s);
-      //Serial.println(s.length());
+      s = s.substring(s.indexOf('@')+1);
+      Serial.print("\nSerial data: \n");
+      Serial.println(s);
+      Serial.println(s.length());
 
       // Ensure no invalid characters or overlapping packets
       if (s.indexOf('@') == -1 && s.indexOf('!') == -1) {
         // Ensure the packet is of the right size
-        if (s.length() == 96){
+        if ((s.length() < 96) && (s.length() > 80)){
           processSerial(s);
         }
       }
@@ -488,7 +506,7 @@ void loop() {
 
       //ultrasonic
       // Serial.print("Ceiling Height: ");
-      // Serial.println(ceilHeight);
+      Serial.println(ceilHeight);
     
 
       //perform decisions
@@ -500,14 +518,14 @@ void loop() {
             
             yawInput = -20;   //turning rate while searching
 
-
+            // Serial.print(ceilHeight);
             //check if the height of the blimp is within this range (ft), adjust accordingly to fall in the zone 
-            if (ceilHeight < 110) {
+            if (ceilHeight > 200) {
               //Serial.println("up");
               upInput = 100*cos(pitch*3.1415/180.0); //or just 100 (without pitch control)
               forwardInput = 100*sin(pitch*3.1415/180.0);
               
-            } else if (ceilHeight > 200) {
+            } else if (ceilHeight < 25) {
               //Serial.println("down");
               upInput = -100*cos(pitch*3.1415/180.0);
               forwardInput = -100*sin(pitch*3.1415/180.0);
@@ -669,7 +687,7 @@ void processSerial(String msg) {
   }
 
   ceilHeight = (double)splitData[3].toFloat();
-  //Serial.println(ceilHeight);
+  // Serial.println(ceilHeight);
 
   detections.clear();
   detections.push_back(red);
