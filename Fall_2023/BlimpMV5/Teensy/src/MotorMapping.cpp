@@ -4,7 +4,9 @@
 
 BlimpClock rosClock_motorWrite;
 
-void MotorMapping::Init(int LSPin, int RSPin, int LMPin, int RMPin, double newdeadband, double newturnOnCom, double newminCom, double newmaxCom, double servoFilter) {
+void MotorMapping::Init(int LSPin, int RSPin, int LMPin, int RMPin, double newdeadband, double newturnOnCom, double newminCom, double newmaxCom, double servoFilter, ROSHandler* rosHandlerPtr) {
+    this->rosHandlerPtr = rosHandlerPtr;
+    
     //set servo pins
     this->LServo.attach(LSPin);
     this->RServo.attach(RSPin);
@@ -207,13 +209,13 @@ void MotorMapping::update(double pitch, double forward, double up, double yaw) {
   RMotor.write(RMotorMag);
   LMotor.write(LMotorMag);
 
-  if(rosClock_motorWrite.isReady() && ROSHandlerSingleton != nullptr){
+  if(rosHandlerPtr != nullptr && rosClock_motorWrite.isReady()){
     String msg = "";
     msg += "RServo(" + String(roundDouble(RServoAngle,0)) + ")";
     msg += " - LServo(" + String(roundDouble(LServoAngle,0)) + ")";
     msg += " - RBLMotor(" + String(roundDouble(RMotorMag,0)) + ")";
     msg += " - LBLMotor(" + String(roundDouble(LMotorMag,0)) + ")";
-    ROSHandlerSingleton->PublishTopic_String("motorWrite",msg);
+    rosHandlerPtr->PublishTopic_String("motorWrite",msg);
   }
 }
 

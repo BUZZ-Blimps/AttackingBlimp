@@ -21,7 +21,7 @@ def main(args=None):
     except Exception as e:
         error_exception = e
         error_traceback = traceback.format_exc()
-
+    
     bridge.close()
     rclpy.shutdown()
 

@@ -75,7 +75,7 @@ class UDPHelper:
         outBytes = message.encode(encoding='utf-8',errors='ignore')
         address = (IP, self.port)
         numBytes = self.sock.sendto(outBytes, address)
-        print("Sending \"",message,"\" to address ",address," = ",numBytes,sep='')
+        #print("Sending \"",message,"\" to address ",address," = ",numBytes,sep='')
 
     def close(self):
         if not self.looping:

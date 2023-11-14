@@ -105,6 +105,7 @@ BlimpClock serialHeartbeat;
 BlimpClock rosClock_ceilHeight;
 BlimpClock rosClock_cameraMessage;
 BlimpClock rosClock_debug;
+BlimpClock rosClock_state;
 
 //variables
 double feedbackData[FEEDBACK_BUF_SIZE];
@@ -160,7 +161,7 @@ void setup() {
   //pre process for accel before vertical kalman filter
 
   //motor->(pin,deadband,turn on,min,max)
-  motors.Init(LSPIN, RSPIN, LMPIN, RMPIN, 5, 50, 1000, 2000,0.3);
+  motors.Init(LSPIN, RSPIN, LMPIN, RMPIN, 5, 50, 1000, 2000,0.3, &rosHandler);
 
   // Sensors
   BerryIMU.Init();
@@ -184,9 +185,9 @@ void setup() {
   // Subscriber Setup //
 
   //rosHandler.SubscribeTopic_String(TEST_SUB, test_callback); // Test subscription
-  //rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, callback_motors);
-  //rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, callback_auto);
-  //rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
+  rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, callback_motors);
+  rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, callback_auto);
+  rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
 
   // Publisher
   rosHandler.PublishTopic_String("/identify", BLIMP_ID);
@@ -210,7 +211,8 @@ void setup() {
 
   rosClock_ceilHeight.setFrequency(10);
   rosClock_cameraMessage.setFrequency(10);
-  rosClock_debug.setFrequency(30);
+  rosClock_debug.setFrequency(5);
+  rosClock_state.setFrequency(10);
   
   //wait 2 seconds
   delay(2000);
@@ -298,17 +300,15 @@ void flagTimePrint(){
 
 
 void loop() {
-  flagTimeStart();
   rosHandler.Update();
-
-  autonomousState = autonomous;
-  targetColor = 1; // green
-  flagTime("A");
 
   if(rosClock_debug.isReady()){
     rosHandler.PublishTopic_String("debug","Time: " + String(roundDouble(millis()/1000.0,2)));
   }
-  flagTime("B");
+
+  if(rosClock_state.isReady()){
+    rosHandler.PublishTopic_String("state",stateNames[state]);
+  }
 
   unsigned long now = micros();
   if (now - identify_time > 1.0*MICROS_TO_SEC) {
@@ -317,7 +317,6 @@ void loop() {
 
     identify_time = now;
   }
-  flagTime("C");
 
   //reading Serial2 color coordinates (OpenMV) and pass them to PID
   /*
@@ -336,7 +335,6 @@ void loop() {
   }
   */
 
-  flagTime("D");
   // Funky serial reading protocol, this is neccessary due to some weird bugs with serial1 and serial2 clashing
   //String incomingString = "";  // initialize an empty string to hold the incoming data
   char startDelimiter = '@';   // set the start delimiter to '@'
@@ -387,7 +385,6 @@ void loop() {
       buffer_serial2 += currentChar;
     }
   }
-  flagTime("E");
 
   //reading data from base station
 
@@ -444,7 +441,6 @@ void loop() {
     //Serial.println(BerryIMU.AccXraw);
     
   } 
-  flagTime("F");
 
   // ************************** BARO LOOP ************************** //
   dt = micros()/MICROS_TO_SEC-lastBaroLoopTick;
@@ -465,7 +461,6 @@ void loop() {
     // xekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
     // yekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
   }
-  flagTime("G");
 
   // ******************* PACKET RELATED LOGIC ******************* //
 
@@ -629,7 +624,6 @@ void loop() {
       }
     }
   }
-  flagTime("H");
   
   // ******************* MOTOR INPUTS ******************* //
   double yawPIDInput = 0.0;
@@ -643,18 +637,15 @@ void loop() {
   } else {
       yawPIDInput = tanh(yawPIDInput)*abs(yawPIDInput);
   }
-  flagTime("I");
   
   // If lost, give zero command
   if (autonomousState == lost) {
     motors.update(0,0,0,0);
   }
-  flagTime("J");
 
   //turing the motors off for debugging for second case
   if (autonomousState == lost){
     motors.update(0,0,0,0);
-    flagTime("K1");
   }else if (MOTORS_OFF == false && motorsOff == false) {
     // Serial.println("\nafter: ");
     // Serial.println(yawInput);
@@ -664,16 +655,12 @@ void loop() {
     // Serial.println(forwardInput);
 
     motors.update(0, forwardInput, upInput, yawPIDInput);
-    flagTime("K2");
   } else {
     motors.update(0,0,0,0);
-    flagTime("K3");
   }
   motorsOff = false;
 
   // End Main Loop
-  flagTime("L");
-  //flagTimePrint();
 }
 
 // process Serial message from the camera

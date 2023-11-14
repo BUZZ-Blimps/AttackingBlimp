@@ -3,10 +3,11 @@
 #include "Servo.h"
 #include "Arduino.h"
 #include "EMAFilter.h"
+#include "ROSHandler.h"
 
 class MotorMapping {
     public:
-    void Init(int LSPin, int RSPin, int LMPin, int RMPin, double newdeadband, double newturnOnCom, double newminCom, double newmaxCom, double servoFilter);
+    void Init(int LSPin, int RSPin, int LMPin, int RMPin, double newdeadband, double newturnOnCom, double newminCom, double newmaxCom, double servoFilter, ROSHandler* rosHandlerPtr);
     void update(double pitch, double forward, double up, double yaw);
     void writeLServo(double angle);
     void writeRServo(double angle);
@@ -15,6 +16,7 @@ class MotorMapping {
     EMAFilter servoLFilter;
 
     private:
+    ROSHandler* rosHandlerPtr = nullptr;
     Servo LServo;
     Servo RServo;
     Servo LMotor;

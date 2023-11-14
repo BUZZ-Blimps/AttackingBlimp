@@ -63,7 +63,7 @@ class BlimpNode(Node):
             genericCallback = partial(self.callback_Subscription, topicName, topicTypeInt)
 
             # Create new subscription with generic callback
-            print("New subscription type (",topicType,") - name (",topicName,")",sep='')
+            #print("New subscription type (",topicType,") - name (",topicName,")",sep='')
 
             # newSubscription = self.create_subscription(topicType, topicName, genericCallback, self.topicBufferSize)
             newSubscription = self.create_subscription(topicType, topicName, genericCallback, self.topicBufferSize)
@@ -71,15 +71,16 @@ class BlimpNode(Node):
             # Save new subscription in map
             self.map_topicName_subscriber[topicName] = newSubscription
 
-            print("Node (",self.name,") subscribed to topic (",topicName,")",sep='')
+            #print("Node (",self.name,") subscribed to topic (",topicName,")",sep='')
         else:
-            print("Node (",self.name,") already subscribed to topic (",topicName,")",sep='')
+            #print("Node (",self.name,") already subscribed to topic (",topicName,")",sep='')
+            pass
     
     def test(self, message1):
         print("ROS published:",message1)
 
     def callback_Subscription(self, topicName, topicTypeInt, message):
-        print("ROS published:", message)
+        #print("ROS published:", message)
         topicType = self.map_topicTypeInt_topicType[topicTypeInt]
         if topicType == Float64MultiArray:
             topicMessage = self.ParseROSMessage_Float64MultiArray(message)
@@ -136,7 +137,7 @@ class BlimpNode(Node):
             # If publisher doesn't exist, make it
             if topicName not in self.map_topicName_publisher:
                 self.map_topicName_publisher[topicName] = self.create_publisher(topicType, topicNameExt, self.topicBufferSize)
-                print("Created publisher (",topicNameExt,") of type ",topicType,sep='')
+                #print("Created publisher (",topicNameExt,") of type ",topicType,sep='')
 
             publisher = self.map_topicName_publisher[topicName]
 

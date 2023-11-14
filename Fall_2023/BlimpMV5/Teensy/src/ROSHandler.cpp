@@ -11,9 +11,7 @@ void ROSHandler::Init(){
     udpHandler.callback_UDPRecvMsg = bind(&ROSHandler::callback_UDPRecvMsg, this, _1);
     udpHandler.Init();
 
-    timer_sendListSubscribedTopics.setPeriod(1);
-
-    ROSHandlerSingleton = this;
+    timer_sendListSubscribedTopics.setPeriod(1);    
 }
 
 void ROSHandler::Update(){

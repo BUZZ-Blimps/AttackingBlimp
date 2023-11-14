@@ -58,25 +58,20 @@ class Bridge:
             for IP in self.map_IP_BlimpNode.keys():
                 blimpNode = self.map_IP_BlimpNode[IP]
                 print("\tBlimp ",blimpNode.name," (",IP,")",sep='')
-                if len(blimpNode.map_topicName_subscriber.keys()) > 0:
-                    print("\t\t Subscribed to: ",end='')
-                    for topicName in blimpNode.map_topicName_subscriber.keys():
-                        print(topicName,", ",sep='',end='')
-                    print()
-                if len(blimpNode.map_topicName_publisher.keys()) > 0:
-                    print("\t\t Publishing: ",end='')
-                    for topicName in blimpNode.map_topicName_publisher.keys():
-                        print(topicName,", ",sep='',end='')
-                    print()
-        else:
-            print("0")
+                print("\t\t Subscribed to: ",end='', flush=True)
+                for topicName in blimpNode.map_topicName_subscriber.keys():
+                    print(topicName,", ",sep='',end='')
+                print()
+                print("\t\t Publishing: ",end='', flush=True)
+                for topicName in blimpNode.map_topicName_publisher.keys():
+                    print(topicName,", ",sep='',end='')
+                print()
 
         for IP in list(self.map_IP_BlimpNode):
             blimpNode = self.map_IP_BlimpNode[IP]
-            rclpy.spin_once(blimpNode)
+            rclpy.spin_once(blimpNode, timeout_sec=0.01)
 
     def callback_UDPRecvMsg(self, IP, message):
-        print("1")
         if IP not in self.map_IP_BlimpName:
             return
         blimpName = self.map_IP_BlimpName[IP]
