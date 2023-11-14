@@ -40,7 +40,7 @@ class UDPHelper:
         print("Listening on UDP socket.")
         self.looping = True
         while(self.looping):
-            #time.sleep(0.001)
+            time.sleep(0.001)
             self.listen()
 
     #Checks for message prefix == identifier
@@ -58,12 +58,12 @@ class UDPHelper:
         else:
             message = data.decode(encoding='utf-8', errors='ignore')
 
-            print("Received message \"",message,"\" from ",address,".",sep='')
+            #print("Received message \"",message,"\" from ",address,".",sep='')
             
             #print("Received message \"",message,"\" from ",address,".",sep='')
             if (message[0:2] == ":)"):
                 message = message[2:]
-                print("Received message \"",message,"\" from ",address,".",sep='')
+                #print("Received message \"",message,"\" from ",address,".",sep='')
                 IP = address[0]
                 self.callback_UDPRecvMsg(IP, message)
 

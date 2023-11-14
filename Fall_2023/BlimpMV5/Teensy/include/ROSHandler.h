@@ -61,3 +61,7 @@ class ROSHandler{
         UDPHandler udpHandler;
         NonBlockingTimer timer_sendListSubscribedTopics;
 };
+
+static ROSHandler* ROSHandlerSingleton = nullptr;
+
+double roundDouble(double num, int decimals);

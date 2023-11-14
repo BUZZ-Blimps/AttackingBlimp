@@ -16,7 +16,7 @@ class Bridge:
         # Maps
         self.map_IP_BlimpNode: dict[str,BlimpNode] = {}
         self.map_IP_BlimpName: dict[str,str] = {
-            "192.168.0.211": "Yoshi",
+            "192.168.0.211" : "Yoshi",
             "192.168.0.212" : "Geoph",
             "192.168.0.213" : "ThisGuy"
         }

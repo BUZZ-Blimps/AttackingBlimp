@@ -102,6 +102,10 @@ BlimpClock heartbeat;
 BlimpClock motorClock;
 BlimpClock serialHeartbeat;
 
+BlimpClock rosClock_ceilHeight;
+BlimpClock rosClock_cameraMessage;
+BlimpClock rosClock_debug;
+
 //variables
 double feedbackData[FEEDBACK_BUF_SIZE];
 bool autoTransition = false;
@@ -134,6 +138,8 @@ float yaw = 0;
 float roll = 0;
 
 String s = "";
+
+String buffer_serial2;
 
 
 std::vector<std::vector<double>> detections;
@@ -178,9 +184,9 @@ void setup() {
   // Subscriber Setup //
 
   //rosHandler.SubscribeTopic_String(TEST_SUB, test_callback); // Test subscription
-  rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, callback_motors);
-  rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, callback_auto);
-  rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
+  //rosHandler.SubscribeTopic_Float64MultiArray(MULTIARRAY_TOPIC, callback_motors);
+  //rosHandler.SubscribeTopic_Bool(AUTO_TOPIC, callback_auto);
+  //rosHandler.SubscribeTopic_Int64(COLOR_TOPIC, callback_targetColor);
 
   // Publisher
   rosHandler.PublishTopic_String("/identify", BLIMP_ID);
@@ -201,6 +207,10 @@ void setup() {
 
   motorClock.setFrequency(30);
   serialHeartbeat.setFrequency(1);
+
+  rosClock_ceilHeight.setFrequency(10);
+  rosClock_cameraMessage.setFrequency(10);
+  rosClock_debug.setFrequency(30);
   
   //wait 2 seconds
   delay(2000);
@@ -256,18 +266,49 @@ void callback_auto(bool value) {
 
 void callback_targetColor(int64_t value){
   if (targetColor == 0 && value == 1) {
-    std::string msg = std::string("Target Color chnaged to Red");
-    rosHandler.PublishTopic_String("log", msg.c_str());
-  }
-  else if (targetColor == 1 && value == 0) {
-    std::string msg = std::string("Target Color chnaged to Blue");
-    rosHandler.PublishTopic_String("log", msg.c_str());
+    rosHandler.PublishTopic_String("log","Target Color changed to Red");
+  } else if (targetColor == 1 && value == 0) {
+    rosHandler.PublishTopic_String("log","Target Color changed to Blue");
   }
   targetColor = value;
 }
 
+vector<float> times;
+vector<String> flags;
+
+void flagTime(String msg){
+  times.push_back(micros()/1000.0);
+  flags.push_back(msg);
+}
+
+void flagTimeStart(){
+  times.clear();
+  flags.clear();
+
+  flagTime("Start");
+}
+
+void flagTimePrint(){
+  String msg = "";
+  for(unsigned int i=0; i<times.size(); i++){
+    msg = msg + flags[i] + ":" + roundDouble(times[i]-times[0],4) + ", ";
+  }
+  Serial.println(msg);
+}
+
+
 void loop() {
+  flagTimeStart();
   rosHandler.Update();
+
+  autonomousState = autonomous;
+  targetColor = 1; // green
+  flagTime("A");
+
+  if(rosClock_debug.isReady()){
+    rosHandler.PublishTopic_String("debug","Time: " + String(roundDouble(millis()/1000.0,2)));
+  }
+  flagTime("B");
 
   unsigned long now = micros();
   if (now - identify_time > 1.0*MICROS_TO_SEC) {
@@ -276,6 +317,7 @@ void loop() {
 
     identify_time = now;
   }
+  flagTime("C");
 
   //reading Serial2 color coordinates (OpenMV) and pass them to PID
   /*
@@ -294,11 +336,14 @@ void loop() {
   }
   */
 
+  flagTime("D");
   // Funky serial reading protocol, this is neccessary due to some weird bugs with serial1 and serial2 clashing
-  String incomingString = "";  // initialize an empty string to hold the incoming data
+  //String incomingString = "";  // initialize an empty string to hold the incoming data
   char startDelimiter = '@';   // set the start delimiter to '@'
   char endDelimiter = '!';     // set the end delimiter to '!'
 
+  // OLD IMPLEMENTATION
+  /*
   // Clear Serial Buffers
   Serial2.read();
   //Serial1.read();
@@ -308,9 +353,9 @@ void loop() {
     if (Serial2.find(startDelimiter)) {
       s = Serial2.readStringUntil(endDelimiter);
       s = s.substring(s.indexOf('@')+1);
-      Serial.print("\nSerial data: \n");
-      Serial.println(s);
-      Serial.println(s.length());
+      //Serial.print("\nSerial data: \n");
+      //Serial.println(s);
+      //Serial.println(s.length());
 
       // Ensure no invalid characters or overlapping packets
       if (s.indexOf('@') == -1 && s.indexOf('!') == -1) {
@@ -324,6 +369,25 @@ void loop() {
       s = "";
     }
   }
+  */
+  // NEW IMPLEMENTATION
+  while(Serial2.available() > 0){
+    char currentChar = Serial2.read();
+    if(currentChar == startDelimiter){
+      buffer_serial2 = "";
+    }else if(currentChar == endDelimiter){
+      String msg = buffer_serial2;
+      buffer_serial2 = "";
+
+      //Ensure the packet is of the right size
+      if(80 < msg.length() && msg.length() < 96){
+        processSerial(msg);
+      }
+    }else{
+      buffer_serial2 += currentChar;
+    }
+  }
+  flagTime("E");
 
   //reading data from base station
 
@@ -380,6 +444,7 @@ void loop() {
     //Serial.println(BerryIMU.AccXraw);
     
   } 
+  flagTime("F");
 
   // ************************** BARO LOOP ************************** //
   dt = micros()/MICROS_TO_SEC-lastBaroLoopTick;
@@ -400,6 +465,7 @@ void loop() {
     // xekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
     // yekf.updateBaro(CEIL_HEIGHT_FROM_START-actualBaro);
   }
+  flagTime("G");
 
   // ******************* PACKET RELATED LOGIC ******************* //
 
@@ -548,7 +614,8 @@ void loop() {
           if (detections.size() == 3 && detections[targetColor].size() == 2 && detections[targetColor][0] < 500) {
               yawInput = xPos.calculate(-detections[targetColor][0], 0, 100);
               upInput = yPos.calculate(-detections[targetColor][1], 0, 100);
-              forwardInput = 350; //approaching thrust (300 as default)
+              //forwardInput = 350; //approaching thrust (300 as default)
+              forwardInput = 0;
           } else {
             state = searching;
           }
@@ -562,6 +629,7 @@ void loop() {
       }
     }
   }
+  flagTime("H");
   
   // ******************* MOTOR INPUTS ******************* //
   double yawPIDInput = 0.0;
@@ -575,18 +643,19 @@ void loop() {
   } else {
       yawPIDInput = tanh(yawPIDInput)*abs(yawPIDInput);
   }
+  flagTime("I");
   
   // If lost, give zero command
   if (autonomousState == lost) {
     motors.update(0,0,0,0);
   }
+  flagTime("J");
 
   //turing the motors off for debugging for second case
-  if (autonomousState == lost)
-  {
+  if (autonomousState == lost){
     motors.update(0,0,0,0);
-  }
-  else if (MOTORS_OFF == false && motorsOff == false) {
+    flagTime("K1");
+  }else if (MOTORS_OFF == false && motorsOff == false) {
     // Serial.println("\nafter: ");
     // Serial.println(yawInput);
     // Serial.print(",");
@@ -595,25 +664,31 @@ void loop() {
     // Serial.println(forwardInput);
 
     motors.update(0, forwardInput, upInput, yawPIDInput);
+    flagTime("K2");
   } else {
     motors.update(0,0,0,0);
+    flagTime("K3");
   }
   motorsOff = false;
 
   // End Main Loop
+  flagTime("L");
+  //flagTimePrint();
 }
 
 // process Serial message from the camera
 void processSerial(String msg) {
-    std::vector<double> green;
-    std::vector<double> blue;
-    std::vector<double> red;
+  String cameraMessageTopicName = "cameraMessage";
 
-    std::vector<String> splitData;
-    std::vector<String> object;
-    //Serial.print("Message");
-    //split data
-    if (msg.length() > 2) {
+  std::vector<double> green;
+  std::vector<double> blue;
+  std::vector<double> red;
+
+  std::vector<String> splitData;
+  std::vector<String> object;
+  //Serial.print("Message");
+  //split data
+  if (msg.length() > 2) {
     int first = 0;
     int index = 1;
     while (index < msg.length()) {
@@ -629,10 +704,12 @@ void processSerial(String msg) {
   } else {
     //invalid message
     Serial.println("Invalid Message From Open MV");
+    if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, "Invalid message (1).");
     return;
   }
 
   if (splitData.size() != 4) {
+    if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, "Invalid splitData size.");
     return;
   }
 
@@ -655,6 +732,7 @@ void processSerial(String msg) {
     } else {
       //invalid message
       Serial.println("Invalid Message From Open MV");
+      if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, "Invalid message (2).");
       return;
     }
 
@@ -687,11 +765,27 @@ void processSerial(String msg) {
   }
 
   ceilHeight = (double)splitData[3].toFloat();
+  if(rosClock_ceilHeight.isReady()) rosHandler.PublishTopic_Float64("ceilHeight",ceilHeight);
   // Serial.println(ceilHeight);
 
   detections.clear();
   detections.push_back(red);
   detections.push_back(green);
   detections.push_back(blue);
+
+  String cameraMessage = "";
+  int doubleDecimals = 2;
+  if(red.size() != 0){
+    cameraMessage = cameraMessage + "Red: (" + roundDouble(red[0],doubleDecimals) + ", " + roundDouble(red[1],doubleDecimals) + ")";
+  }
+  if(green.size() != 0){
+    if(cameraMessage.length() != 0) cameraMessage = cameraMessage + " - ";
+    cameraMessage = cameraMessage + "Green: (" + roundDouble(green[0],doubleDecimals) + ", " + roundDouble(green[1],doubleDecimals) + ")";
+  }
+  if(blue.size() != 0){
+    if(cameraMessage.length() != 0) cameraMessage = cameraMessage + " - ";
+    cameraMessage = cameraMessage + "Blue: (" + roundDouble(blue[0],doubleDecimals) + ", " + roundDouble(blue[1],doubleDecimals) + ")";
+  }
+  if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, cameraMessage);
 }
 

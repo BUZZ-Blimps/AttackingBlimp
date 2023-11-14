@@ -1,4 +1,8 @@
 #include "MotorMapping.h"
+#include "BlimpClock.h"
+#include "ROSHandler.h"
+
+BlimpClock rosClock_motorWrite;
 
 void MotorMapping::Init(int LSPin, int RSPin, int LMPin, int RMPin, double newdeadband, double newturnOnCom, double newminCom, double newmaxCom, double servoFilter) {
     //set servo pins
@@ -20,6 +24,8 @@ void MotorMapping::Init(int LSPin, int RSPin, int LMPin, int RMPin, double newde
     this->turnOnCom = newturnOnCom;
     this->minCom = newminCom;
     this->maxCom = newmaxCom;
+
+    rosClock_motorWrite.setFrequency(5);
 }
 
 void MotorMapping::update(double pitch, double forward, double up, double yaw) {
@@ -187,13 +193,28 @@ void MotorMapping::update(double pitch, double forward, double up, double yaw) {
     // snprintf(msg, 128, "magL=%0.2f, magR=%0.2f",magL, magR);
     // Serial.println(msg);
 
-  RServo.write(servoRFilter.filter(thetaR));
-  LServo.write(servoLFilter.filter(thetaL));
+  double RServoAngle = servoRFilter.filter(thetaR);
+  double LServoAngle = servoLFilter.filter(thetaL);
 
-  delay(50);
+  RServo.write(RServoAngle);
+  LServo.write(LServoAngle);
+
+  //delay(50); // Delay motors until servo motors reach desired position
+
+  double RMotorMag = this->motorCom(magR);
+  double LMotorMag = this->motorCom(magL);
   
-  RMotor.write(this->motorCom(magR));
-  LMotor.write(this->motorCom(magL));
+  RMotor.write(RMotorMag);
+  LMotor.write(LMotorMag);
+
+  if(rosClock_motorWrite.isReady() && ROSHandlerSingleton != nullptr){
+    String msg = "";
+    msg += "RServo(" + String(roundDouble(RServoAngle,0)) + ")";
+    msg += " - LServo(" + String(roundDouble(LServoAngle,0)) + ")";
+    msg += " - RBLMotor(" + String(roundDouble(RMotorMag,0)) + ")";
+    msg += " - LBLMotor(" + String(roundDouble(LMotorMag,0)) + ")";
+    ROSHandlerSingleton->PublishTopic_String("motorWrite",msg);
+  }
 }
 
 void MotorMapping::writeLServo(double angle) {

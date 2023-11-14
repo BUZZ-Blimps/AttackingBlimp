@@ -12,6 +12,8 @@ void ROSHandler::Init(){
     udpHandler.Init();
 
     timer_sendListSubscribedTopics.setPeriod(1);
+
+    ROSHandlerSingleton = this;
 }
 
 void ROSHandler::Update(){
@@ -278,4 +280,8 @@ String ROSHandler::DoubleToString(double value){
     char buff[30];
     sprintf(buff, "%f", value);
     return String(buff);
+}
+
+double roundDouble(double num, int decimals){
+  return round(num * pow10(decimals)) / pow10(decimals);
 }

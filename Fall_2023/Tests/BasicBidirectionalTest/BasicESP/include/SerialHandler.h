@@ -4,6 +4,10 @@
 
 using namespace std;
 
+const char flag_UDPConnectionData = 'C';
+const char flag_UDPMessage = 'M';
+const char flag_Debug = 'D';
+
 class SerialHandler{
     public:
         void Init();
@@ -18,7 +22,7 @@ class SerialHandler{
         void ParseMessages();
         void ParseMessage(String message);
         void SendMessages();
-        void RecordESPHearbeat();
+        void RecordSerialHeartbeat();
 
         const unsigned int bytesPerMessage = 20;
         const float messagesPerSecond = 100; // [Hz]
@@ -30,8 +34,8 @@ class SerialHandler{
         // ========== Variables ==========
         bool connectedSerial = false;
         float lastHeartbeatMillis = 0; // [ms]
-        String bufferSerial1_in = "";
-        String bufferSerial1_out = "";
+        String bufferSerial_in = "";
+        String bufferSerial_out = "";
         float lastMessageOutMicros = 0; // [us]
 
 };
