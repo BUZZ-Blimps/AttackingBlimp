@@ -45,9 +45,9 @@ const char* autonomousStatesNames[] = {IDNAME(manual), IDNAME(autonomous), IDNAM
 const char* autonomousStatesStr[] = {"manual", "autonomous", "lost"};
 
 enum targetColors {
+  blue,
   red,
   green,
-  blue
 };
 targetColors targetColor = red; 
 // blue = 0, red = 1
@@ -104,9 +104,12 @@ PID pitchRatePID(2.4,0,0);
 PID xPos(150,0,5);
 PID yPos(150,0,5);
 
+EMAFilter EMA_targetEstimateX;
+EMAFilter EMA_targetEstimateY;
+
 double targetEstimateX = 0; // [-1,1]
 double targetEstimateY = 0; // [-1,1]
-const double targetEstimateTau = 4; // [seconds], constant, after tau seconds, the next position becomes the new estimate
+const double targetEstimateTau = 2; // [seconds], keep looking at last estimate (even if you don't see anything right now)
 double targetEstimateLastTime = -1; // [seconds]
 
 //WIFI objects
@@ -118,8 +121,10 @@ BlimpClock serialHeartbeat;
 BlimpClock rosClock_ceilHeight;
 BlimpClock rosClock_cameraMessage;
 BlimpClock rosClock_debug;
+BlimpClock rosClock_debug2;
 BlimpClock rosClock_state;
 BlimpClock rosClock_targetEstimate;
+const bool rosLog = true;
 
 //variables
 double feedbackData[FEEDBACK_BUF_SIZE];
@@ -176,7 +181,7 @@ void setup() {
   //pre process for accel before vertical kalman filter
 
   //motor->(pin,deadband,turn on,min,max)
-  motors.Init(LSPIN, RSPIN, LMPIN, RMPIN, 5, 50, 1000, 2000,0.3, &rosHandler);
+  motors.Init(LSPIN, RSPIN, LMPIN, RMPIN, 5, 50, 1000, 2000, 0.3, &rosHandler);
 
   // Sensors
   BerryIMU.Init();
@@ -196,6 +201,9 @@ void setup() {
   baroOffset.Init(0.5);
   //roll offset computation from imu
   rollOffset.Init(0.5);
+
+  EMA_targetEstimateX.Init(0.3);
+  EMA_targetEstimateY.Init(0.3);
 
   // Subscriber Setup //
 
@@ -227,13 +235,14 @@ void setup() {
   rosClock_ceilHeight.setFrequency(10);
   rosClock_cameraMessage.setFrequency(10);
   rosClock_debug.setFrequency(5);
+  rosClock_debug2.setFrequency(5);
   rosClock_state.setFrequency(10);
   rosClock_targetEstimate.setFrequency(10);
   
   //wait 2 seconds
   delay(2000);
 
-  rosHandler.PublishTopic_String("log", "Teensy booted and connected to network.");
+  if(rosLog) rosHandler.PublishTopic_String("log", "Teensy booted and connected to network.");
 }
 
 /*test_callback
@@ -273,11 +282,11 @@ void callback_auto(bool value) {
   int newState = value ? manual : autonomous;
   if (newState == manual && autonomousState == autonomous) {
     std::string msg = std::string("Going Manual for a Bit...");
-    rosHandler.PublishTopic_String("log", msg.c_str());
+    if(rosLog) rosHandler.PublishTopic_String("log", msg.c_str());
   }
   else if (newState == autonomous && autonomousState == manual) {
     std::string msg = std::string("Activating Auto Mode");
-    rosHandler.PublishTopic_String("log", msg.c_str());
+    if(rosLog) rosHandler.PublishTopic_String("log", msg.c_str());
   }
   autonomousState = value ? manual : autonomous;
 }
@@ -285,11 +294,11 @@ void callback_auto(bool value) {
 void callback_targetColor(int64_t value){
   targetColors newTargetColor = static_cast<targetColors>(value);
   if (targetColor == red && newTargetColor != red) {
-    rosHandler.PublishTopic_String("log","Target Color changed to red.");
+    if(rosLog) rosHandler.PublishTopic_String("log","Target Color changed to red.");
   } else if (targetColor == green && newTargetColor != green) {
-    rosHandler.PublishTopic_String("log","Target Color changed to green.");
+    if(rosLog) rosHandler.PublishTopic_String("log","Target Color changed to green.");
   } else if (targetColor == blue && newTargetColor != blue) {
-    rosHandler.PublishTopic_String("log","Target Color changed to blue.");
+    if(rosLog) rosHandler.PublishTopic_String("log","Target Color changed to blue.");
   }
   targetColor = newTargetColor;
 }
@@ -321,8 +330,8 @@ void flagTimePrint(){
 void loop() {
   rosHandler.Update();
 
-  //autonomousState = autonomous;
-  targetColor = green;
+  // autonomousState = autonomous;
+  // targetColor = red;
 
   /*
   if(rosClock_debug.isReady()){
@@ -333,11 +342,12 @@ void loop() {
   if(rosClock_targetEstimate.isReady()){
     double currentTime2 = micros()/1000000.0;
     double elapsedTime2 = currentTime2 - targetEstimateLastTime;
-    rosHandler.PublishTopic_String("targetEstimate","Estimate ("+String(roundDouble(targetEstimateX,2))+", "+String(roundDouble(targetEstimateY,2))+") - Last Estimated ("+String(roundDouble(elapsedTime2,1))+")");
+    rosHandler.PublishTopic_String("targetEstimate","Estimate ("+String(roundDouble(EMA_targetEstimateX.last,2))+", "+String(roundDouble(EMA_targetEstimateY.last,2))+") - Last");
   }
 
   if(rosClock_state.isReady()){
     rosHandler.PublishTopic_String("state",stateNames[state]);
+    Serial.println("State: " + String(stateNames[state]));
   }
 
   unsigned long now = micros();
@@ -644,14 +654,16 @@ void loop() {
           double elapsedTime1 = currentTime1 - targetEstimateLastTime;
 
           if(elapsedTime1 < targetEstimateTau){
-            yawInput = xPos.calculate(0, targetEstimateX, min(elapsedTime1, 0.5));
-            upInput = yPos.calculate(0, targetEstimateY, min(elapsedTime1, 0.5));
+            
+
+            yawInput = xPos.calculate(0, EMA_targetEstimateX.last, min(elapsedTime1, 0.5));
+            upInput = yPos.calculate(0, EMA_targetEstimateY.last, min(elapsedTime1, 0.5));
             forwardInput = 0;
 
             //Enforce saturation
-            double maxSaturation = 150;
+            double maxSaturation = 50;
             yawInput = min(max(yawInput, -maxSaturation), maxSaturation);
-            upInput = min(max(upInput, -maxSaturation), maxSaturation);
+            //upInput = min(max(upInput, -maxSaturation), maxSaturation);
             
             if(rosClock_debug.isReady()){
               rosHandler.PublishTopic_String("debug","yaw("+String(yawInput)+") - Up("+upInput+") - Forward("+forwardInput+")");
@@ -688,6 +700,10 @@ void loop() {
       yawPIDInput = 0;
   } else {
       yawPIDInput = tanh(yawPIDInput)*abs(yawPIDInput);
+  }
+            
+  if(rosClock_debug2.isReady()){
+    rosHandler.PublishTopic_String("debug2","Yaw Rate: Pre-PID("+String(yawInput)+") - Post-Filter("+yawPIDInput+")");
   }
   
   // If lost, give zero command
@@ -841,18 +857,23 @@ void processSerial(String msg) {
     if(targetEstimateLastTime < 0){
       // First information, initialize!
       targetEstimateLastTime = currentTime;
-      targetEstimateX = targetDetection[0];
-      targetEstimateY = targetDetection[1];
+      // targetEstimateX = targetDetection[0];
+      // targetEstimateY = targetDetection[1];
+      EMA_targetEstimateX.setInitial(targetDetection[0]);
+      EMA_targetEstimateY.setInitial(targetDetection[1]);
     }else{
       // Not first information, update
       double elapsedTime = currentTime - targetEstimateLastTime;
       targetEstimateLastTime = currentTime;
 
-      double updateStep = elapsedTime/targetEstimateTau; // Can never be bigger than 1
-      updateStep = min(updateStep, 1.0);
-      updateStep = max(updateStep, 0.1/targetEstimateTau);
-      targetEstimateX = targetEstimateX + updateStep * (targetDetection[0] - targetEstimateX);
-      targetEstimateY = targetEstimateY + updateStep * (targetDetection[1] - targetEstimateY);
+      EMA_targetEstimateX.filter(targetDetection[0]);
+      EMA_targetEstimateY.filter(targetDetection[1]);
+
+      // double updateStep = elapsedTime/targetEstimateTau; // Can never be bigger than 1
+      // updateStep = min(updateStep, 1.0);
+      // updateStep = max(updateStep, 0.01);
+      // targetEstimateX = targetEstimateX + updateStep * (targetDetection[0] - targetEstimateX);
+      // targetEstimateY = targetEstimateY + updateStep * (targetDetection[1] - targetEstimateY);
     }
   }
 

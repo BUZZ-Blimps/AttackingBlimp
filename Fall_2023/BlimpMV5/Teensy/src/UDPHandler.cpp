@@ -24,6 +24,7 @@ void UDPHandler::callback_SerialRecvMsg(String message){
     if(messageFlag == flag_UDPConnectionData){
         // UDP connection status
         bool connectedToUDP = (message.charAt(0) != '0');
+        Serial.println("ESP connected to WiFi: " + String(connectedToUDP));
         if(!connectedToUDP){
             // No active UDP connection
             // Send UDP connection to ESP

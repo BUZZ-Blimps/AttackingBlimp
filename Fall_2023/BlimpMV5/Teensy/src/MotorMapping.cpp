@@ -27,10 +27,20 @@ void MotorMapping::Init(int LSPin, int RSPin, int LMPin, int RMPin, double newde
     this->minCom = newminCom;
     this->maxCom = newmaxCom;
 
-    rosClock_motorWrite.setFrequency(20);
+    rosClock_motorWrite.setFrequency(10);
 }
 
 void MotorMapping::update(double pitch, double forward, double up, double yaw) {
+
+  if(rosHandlerPtr != nullptr && rosClock_motorWrite.isReady()){
+    String msg = "";
+    msg += "pitch(" + String(roundDouble(pitch,0)) + ")";
+    msg += " - forward(" + String(roundDouble(forward,0)) + ")";
+    msg += " - up(" + String(roundDouble(up,0)) + ")";
+    msg += " - yaw(" + String(roundDouble(yaw,0)) + ")";
+    rosHandlerPtr->PublishTopic_String("motorMapping",msg);
+  }
+  
   //yaw positive right, negative left for positive yaw
   //calcs are in motor command domain that is shifted by -1500 so that zero throttle is the origin
   //yaw, up, and forward are bounded by -500 to 500;
@@ -209,6 +219,7 @@ void MotorMapping::update(double pitch, double forward, double up, double yaw) {
   RMotor.write(RMotorMag);
   LMotor.write(LMotorMag);
 
+  /*
   if(rosHandlerPtr != nullptr && rosClock_motorWrite.isReady()){
     String msg = "";
     msg += "RServo(" + String(roundDouble(RServoAngle,0)) + ")";
@@ -217,6 +228,7 @@ void MotorMapping::update(double pitch, double forward, double up, double yaw) {
     msg += " - LBLMotor(" + String(roundDouble(LMotorMag,0)) + ")";
     rosHandlerPtr->PublishTopic_String("motorWrite",msg);
   }
+  */
 }
 
 void MotorMapping::writeLServo(double angle) {
@@ -228,7 +240,7 @@ void MotorMapping::writeRServo(double angle) {
 }
 
 double MotorMapping::motorCom(double command) {
-    //input from -1000, to 1000 is expected from controllers
+    //input from -1000, to 1000 is expected from controllers (from command)
     double adjustedCom = 1500;
     
     if (abs(command) <= deadband/2) {

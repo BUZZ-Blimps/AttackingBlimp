@@ -60,7 +60,6 @@ class UDPHelper:
 
             #print("Received message \"",message,"\" from ",address,".",sep='')
             
-            #print("Received message \"",message,"\" from ",address,".",sep='')
             if (message[0:2] == ":)"):
                 message = message[2:]
                 #print("Received message \"",message,"\" from ",address,".",sep='')
