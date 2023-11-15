@@ -4,6 +4,7 @@ from time import time
 from NonBlockingTimer import NonBlockingTimer
 from functools import partial
 import rclpy
+from threading import Lock
 
 
 class Bridge:
@@ -28,6 +29,11 @@ class Bridge:
         self.timeout_blimpNodeHeartbeat = 5 # [s]
 
         self.timer_printBlimps = NonBlockingTimer(frequency=1)
+
+        self.createdNewBlimpNode = False
+        self.map_IP_NewBlimpNode = {}
+        self.mutex_newlyCreatedBlimpNodes = Lock()
+        self.mutex_accessBlimpNodes = Lock()
     
     def __del__(self):
         self.udpHelper.close()
@@ -46,10 +52,21 @@ class Bridge:
                 # Time out has occured, mark node for deletion
                 blimpNodeIPsToRemove.append(IP)
         # Actually delete nodes (can't iterate through map AND delete elements of map at same time)
-        for IP in blimpNodeIPsToRemove:
-            blimpNode = self.map_IP_BlimpNode.pop(IP)
-            blimpNode.destroy_node()
-            print("Time-out detected of node (",blimpNode.name,")",sep='')
+        with self.mutex_accessBlimpNodes:
+            for IP in blimpNodeIPsToRemove:
+                blimpNode = self.map_IP_BlimpNode.pop(IP)
+                blimpNode.destroy_node()
+                print("Time-out detected of node (",blimpNode.name,")",sep='')
+        
+        # Check for newly created blimps and add them
+        if self.createdNewBlimpNode:
+            with self.mutex_newlyCreatedBlimpNodes:
+                # Iterate through IPs and add copy over new nodes
+                for IP in self.map_IP_NewBlimpNode.keys():
+                    self.map_IP_BlimpNode[IP] = self.map_IP_NewBlimpNode[IP]
+                # Delete old nodes
+                self.map_IP_NewBlimpNode.clear()
+                self.createdNewBlimpNode = False
         
         # Print list of currently detected blimps
         if self.timer_printBlimps.isReady():
@@ -69,19 +86,30 @@ class Bridge:
 
         for IP in list(self.map_IP_BlimpNode):
             blimpNode = self.map_IP_BlimpNode[IP]
-            rclpy.spin_once(blimpNode, timeout_sec=0.01)
+            rclpy.spin_once(blimpNode, timeout_sec=0.001)
+    
+    def createBlimpNode(self, IP, blimpName):
+        with self.mutex_newlyCreatedBlimpNodes:
+            if IP not in self.map_IP_NewBlimpNode:
+                print("Created blimp (",blimpName,")",sep='')
+                self.map_IP_NewBlimpNode[IP] = BlimpNode(IP, blimpName, self.sendTopicToBlimp)
+                self.createdNewBlimpNode = True
+            newBlimpNode = self.map_IP_NewBlimpNode[IP]
+        return newBlimpNode
 
     def callback_UDPRecvMsg(self, IP, message):
         if IP not in self.map_IP_BlimpName:
             return
         blimpName = self.map_IP_BlimpName[IP]
 
+        blimpNode = None
         if IP not in self.map_IP_BlimpNode:
             # Blimp not previously registered
-            #func_sendTopicToBlimp = partial(self.sendTopicToBlimp, self)
-            self.map_IP_BlimpNode[IP] = BlimpNode(IP, blimpName, self.sendTopicToBlimp)
+            blimpNode = self.createBlimpNode(IP, blimpName)
+        else:
+            with self.mutex_accessBlimpNodes:
+                blimpNode = self.map_IP_BlimpNode[IP]
         
-        blimpNode = self.map_IP_BlimpNode[IP]
         blimpNode.lastHeartbeat = time()
 
         flag = message[0:1]
