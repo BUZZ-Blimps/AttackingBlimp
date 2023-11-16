@@ -49,7 +49,7 @@ enum targetColors {
   red,
   green,
 };
-targetColors targetColor = red; 
+targetColors targetColor = red;
 // blue = 0, red = 1
 
 //motor pins
@@ -101,7 +101,7 @@ EMAFilter rollOffset;
 PID yawRatePID(3,0,0);  
 PID pitchRatePID(2.4,0,0);
 //adjust  these for Openmv dont change the middle zeros
-PID xPos(150,0,5);
+PID xPos(200,0,4);
 PID yPos(150,0,5);
 
 EMAFilter EMA_targetEstimateX;
@@ -124,7 +124,7 @@ BlimpClock rosClock_debug;
 BlimpClock rosClock_debug2;
 BlimpClock rosClock_state;
 BlimpClock rosClock_targetEstimate;
-const bool rosLog = true;
+const bool rosLog = false;
 
 //variables
 double feedbackData[FEEDBACK_BUF_SIZE];
@@ -137,6 +137,7 @@ double upInput = 0;
 
 double lastOuterLoopTime = 0;
 
+// Actual
 double ceilHeight = 500;
 
 //IMU orentation
@@ -232,12 +233,12 @@ void setup() {
   motorClock.setFrequency(30);
   serialHeartbeat.setFrequency(1);
 
-  rosClock_ceilHeight.setFrequency(10);
-  rosClock_cameraMessage.setFrequency(10);
+  rosClock_ceilHeight.setFrequency(5);
+  rosClock_cameraMessage.setFrequency(5);
   rosClock_debug.setFrequency(5);
   rosClock_debug2.setFrequency(5);
-  rosClock_state.setFrequency(10);
-  rosClock_targetEstimate.setFrequency(10);
+  rosClock_state.setFrequency(5);
+  rosClock_targetEstimate.setFrequency(5);
   
   //wait 2 seconds
   delay(2000);
@@ -269,9 +270,9 @@ void callback_motors(vector<double> values)
     tempforward = values[1];
     tempyaw = values[0];
     tempup = values[3];
-    forwardInput = values[1];
-    yawInput = values[0];
-    upInput = values[3];
+    // forwardInput = values[1];
+    // yawInput = values[0];
+    // upInput = values[3];
   }
 }
 
@@ -293,11 +294,11 @@ void callback_auto(bool value) {
 
 void callback_targetColor(int64_t value){
   targetColors newTargetColor = static_cast<targetColors>(value);
-  if (targetColor == red && newTargetColor != red) {
+  if (newTargetColor == red && targetColor != red) {
     if(rosLog) rosHandler.PublishTopic_String("log","Target Color changed to red.");
-  } else if (targetColor == green && newTargetColor != green) {
+  } else if (newTargetColor == green && targetColor != green) {
     if(rosLog) rosHandler.PublishTopic_String("log","Target Color changed to green.");
-  } else if (targetColor == blue && newTargetColor != blue) {
+  } else if (newTargetColor == blue && targetColor != blue) {
     if(rosLog) rosHandler.PublishTopic_String("log","Target Color changed to blue.");
   }
   targetColor = newTargetColor;
@@ -378,7 +379,7 @@ void loop() {
   // Funky serial reading protocol, this is neccessary due to some weird bugs with serial1 and serial2 clashing
   //String incomingString = "";  // initialize an empty string to hold the incoming data
   char startDelimiter = '@';   // set the start delimiter to '@'
-  char endDelimiter = '!';     // set the end delimiter to '!'
+  char endDelimiter = '#';     // set the end delimiter to '!'
 
   // OLD IMPLEMENTATION
   /*
@@ -418,9 +419,8 @@ void loop() {
       buffer_serial2 = "";
 
       //Ensure the packet is of the right size
-      if(80 < msg.length() && msg.length() < 96){
-        processSerial(msg);
-      }
+      Serial.println("msg: " + msg);
+      processSerial(msg);
     }else{
       buffer_serial2 += currentChar;
     }
@@ -567,9 +567,9 @@ void loop() {
 
       //safegaurd: if motor reads any command that is greater than 1, shut the motor off!!!
 
-      forwardInput = max(-1.00, min(1.00,forwardInput));
-      upInput = max(-1.00, min(1.00,upInput));
-      yawInput = max(-1.00, min(1.00,yawInput));
+      forwardInput = max(-1.00, min(1.00,tempforward));
+      upInput = max(-1.00, min(1.00,tempup));
+      yawInput = max(-1.00, min(1.00,tempyaw));
 
       // if (abs(forwardInput) >1.0 || abs(yawInput)>1.0 || abs(upInput)>1.0){
       //   motorsOff = true;
@@ -586,9 +586,9 @@ void loop() {
 
       //map controller input to yaw rate
       //Serial.println(yawInput);
-      upInput = 500*tempup;
-      forwardInput = 500*tempforward;
-      yawInput = -tempyaw*120;    //120 degrees per second
+      upInput = 500*upInput;
+      forwardInput = 500*forwardInput;
+      yawInput = -yawInput*200;    //120 degrees per second
 
 
 
@@ -611,22 +611,27 @@ void loop() {
     
 
       //perform decisions
+      state = searching;
       switch (state) {
 
         //Search
         case searching: {
           if (true) {
-            //yawInput = -20;   //turning rate while searching
-            yawInput = 0;
+            yawInput = -20;   //turning rate while searching
+            // yawInput = 0;
 
             // Serial.print(ceilHeight);
             //check if the height of the blimp is within this range (ft), adjust accordingly to fall in the zone 
-            if (ceilHeight > 200) {
+            if (ceilHeight > 400){
+              // Ultrasonic not working
+              upInput = 0;
+              forwardInput = 0;
+            } else if (ceilHeight > 200) {
               //Serial.println("up");
               upInput = 100*cos(pitch*3.1415/180.0); //or just 100 (without pitch control)
               forwardInput = 100*sin(pitch*3.1415/180.0);
               
-            } else if (ceilHeight < 25) {
+            } else if (ceilHeight < 60) {
               //Serial.println("down");
               upInput = -100*cos(pitch*3.1415/180.0);
               forwardInput = -100*sin(pitch*3.1415/180.0);
@@ -634,6 +639,9 @@ void loop() {
               upInput = 0;
               forwardInput = 0;
             }
+            
+            // Testing on Ground
+            upInput = 0;
             
             //we see something o_O
             if(targetDetection.size() > 0){
@@ -655,19 +663,14 @@ void loop() {
 
           if(elapsedTime1 < targetEstimateTau){
             
-
             yawInput = xPos.calculate(0, EMA_targetEstimateX.last, min(elapsedTime1, 0.5));
             upInput = yPos.calculate(0, EMA_targetEstimateY.last, min(elapsedTime1, 0.5));
-            forwardInput = 0;
+            forwardInput = 100;
 
             //Enforce saturation
             double maxSaturation = 50;
             yawInput = min(max(yawInput, -maxSaturation), maxSaturation);
             //upInput = min(max(upInput, -maxSaturation), maxSaturation);
-            
-            if(rosClock_debug.isReady()){
-              rosHandler.PublishTopic_String("debug","yaw("+String(yawInput)+") - Up("+upInput+") - Forward("+forwardInput+")");
-            }
           }else{
             state = searching;
           }
@@ -689,6 +692,10 @@ void loop() {
     }
   }
   
+  if(rosClock_debug.isReady()){
+    rosHandler.PublishTopic_String("debug","ceilHeight (" + String(ceilHeight) + ") - yaw("+String(yawInput)+") - Up("+upInput+") - Forward("+forwardInput+")");
+  }
+
   // ******************* MOTOR INPUTS ******************* //
   double yawPIDInput = 0.0;
   double deadband = 2.0; //To do
@@ -733,123 +740,198 @@ void loop() {
 
 // process Serial message from the camera
 void processSerial(String msg) {
+  Serial.println("pS");
   String cameraMessageTopicName = "cameraMessage";
 
-  std::vector<double> green;
-  std::vector<double> blue;
-  std::vector<double> red;
+  // PARSE MESSAGE
+  // Format:
+  // #,#,#,#,#,#,#,
+  // blue_x, blue_y, red_x, red_y, green_x, green_y, barometer,
 
-  std::vector<String> splitData;
-  std::vector<String> object;
-  //Serial.print("Message");
-  //split data
-  if (msg.length() > 2) {
-    int first = 0;
-    int index = 1;
-    while (index < msg.length()) {
-      if (msg[index] == ';') {
-        String k = msg.substring(first, index);
-        k.trim();
-        splitData.push_back(k);
-        first = index+1;
-        index = first+1;
+  double parsedDoubles[7];
+  int parsedDoublesIndex = 0;
+
+  String tempBuffer = "";
+  for(int i=0; i<msg.length(); i++){
+    char currentChar = msg.charAt(i);
+    if(currentChar == ',' || currentChar == ';'){
+      String currentBuffer = tempBuffer;
+      tempBuffer = "";
+
+      // Parse currentBuffer
+      if(currentBuffer.length() == 0) continue;
+
+      char firstChar = currentBuffer.charAt(0);
+      if(firstChar == '-' || firstChar == '.' || ('0' <= firstChar && firstChar <= '9')){
+        double currentDouble = stod(currentBuffer.c_str());
+        parsedDoubles[parsedDoublesIndex] = currentDouble;
+        parsedDoublesIndex++;
       }
-      index += 1;
+    }else{
+      tempBuffer += currentChar;
     }
-  } else {
-    //invalid message
-    Serial.println("Invalid Message From Open MV");
-    if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, "Invalid message (1).");
+  }
+
+  if(parsedDoublesIndex != 7){
+    // Could not parse all 7 numbers
+    Serial.println("SERIAL2 PARSE ERROR");
     return;
   }
 
-  if (splitData.size() != 4) {
-    if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, "Invalid splitData size.");
-    return;
-  }
-
+  // Populate targetDetection
   targetDetection.clear();
 
-  for (int i = 0; i < 3; i++) {
-    //Serial.println(splitData[i]);
-    
-    if (splitData[i].length() > 2) {
-      int first = 0;
-      unsigned int index = 1;
-      while (index < splitData[i].length()) {
-        if (splitData[i][index] == ',') {
-          String k = splitData[i].substring(first, index);
-          k.trim();
-          object.push_back(k);
-          first = index+1;
-          index = first+1;
-        }
-        index += 1;
-      }
-    } else {
-      //invalid message
-      Serial.println("Invalid Message From Open MV");
-      if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, "Invalid message (2).");
-      return;
-    }
+  double x_raw;
+  double y_raw;
 
-    //get x,y coordinates
-    //double x = object[0].toFloat()-320/2;
-    //double y = -(object[1].toFloat()-240/2);
-    double x_raw = object[0].toFloat();
-    double y_raw = object[1].toFloat();
-
-    if(x_raw == 1000 && y_raw == 1000){
-      // OpenMV couldn't find a blob
-
-    }else{
-      // OpenMV found a blob
-
-      // DEFAULT OPENMV BEHAVIOR
-      // - finds blobs in frame, top-left = (0,0), bottom-right = (320,240)
-      
-      // Scale back to normal frame
-      double x = x_raw*2/RESOLUTION_WIDTH - 1;
-      double y = (-2*y_raw + RESOLUTION_HEIGHT)/RESOLUTION_WIDTH;
-
-      if (object.size() == 3) {
-        switch (object[2][0]) {
-          case 'r':
-            red.push_back(x);
-            red.push_back(y);
-
-            if(targetColor == targetColors::red){
-              targetDetection.push_back(x);
-              targetDetection.push_back(y);
-            }
-            break;
-          case 'g':
-            green.push_back(x);
-            green.push_back(y);
-
-            if(targetColor == targetColors::green){
-              targetDetection.push_back(x);
-              targetDetection.push_back(y);
-            }
-            break;
-          case 'b':
-            blue.push_back(x);
-            blue.push_back(y);
-
-            if(targetColor == targetColors::blue){
-              targetDetection.push_back(x);
-              targetDetection.push_back(y);
-            }
-            break;
-          default:
-            //do nothing, invalid color option
-            Serial.println("Invalid Color Option");
-            break;
-        }
-      }
-    }
-    object.clear();
+  if(targetColor == targetColors::blue){
+    x_raw = parsedDoubles[0];
+    y_raw = parsedDoubles[1];
+  }else if(targetColor == targetColors::red){
+    x_raw = parsedDoubles[2];
+    y_raw = parsedDoubles[3];
+  }else if(targetColor == targetColors::green){
+    x_raw = parsedDoubles[4];
+    y_raw = parsedDoubles[5];
   }
+
+  if(x_raw == 1000 && y_raw == 1000){
+    // OpenMV couldn't find a blob
+
+  }else{
+    // OpenMV found a blob
+
+    // DEFAULT OPENMV BEHAVIOR
+    // - finds blobs in frame, top-left = (0,0), bottom-right = (320,240)
+    
+    // Scale back to normal frame
+    double x = x_raw*2/RESOLUTION_WIDTH - 1;
+    double y = (-2*y_raw + RESOLUTION_HEIGHT)/RESOLUTION_WIDTH;
+    
+    targetDetection.push_back(x);
+    targetDetection.push_back(y);
+  }
+
+  // Populate ceilHeight
+  ceilHeight = parsedDoubles[6];
+
+  // std::vector<double> green;
+  // std::vector<double> blue;
+  // std::vector<double> red;
+
+  // std::vector<String> splitData;
+  // std::vector<String> object;
+  // //Serial.print("Message");
+  // //split data
+  // if (msg.length() > 2) {
+  //   int first = 0;
+  //   int index = 1;
+  //   while (index < msg.length()) {
+  //     if (msg[index] == ';') {
+  //       String k = msg.substring(first, index);
+  //       k.trim();
+  //       splitData.push_back(k);
+  //       first = index+1;
+  //       index = first+1;
+  //     }
+  //     index += 1;
+  //   }
+  // } else {
+  //   //invalid message
+  //   Serial.println("Invalid Message From Open MV");
+  //   if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, "Invalid message (1).");
+  //   return;
+  // }
+
+  // if (splitData.size() != 4) {
+  //   if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, "Invalid splitData size.");
+  //   return;
+  // }
+
+  // targetDetection.clear();
+
+  
+
+  // for (int i = 0; i < 3; i++) {
+  //   //Serial.println(splitData[i]);
+    
+  //   if (splitData[i].length() > 2) {
+  //     int first = 0;
+  //     unsigned int index = 1;
+  //     while (index < splitData[i].length()) {
+  //       if (splitData[i][index] == ',') {
+  //         String k = splitData[i].substring(first, index);
+  //         k.trim();
+  //         object.push_back(k);
+  //         first = index+1;
+  //         index = first+1;
+  //       }
+  //       index += 1;
+  //     }
+  //   } else {
+  //     //invalid message
+  //     Serial.println("Invalid Message From Open MV");
+  //     if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, "Invalid message (2).");
+  //     return;
+  //   }
+
+  //   //get x,y coordinates
+  //   //double x = object[0].toFloat()-320/2;
+  //   //double y = -(object[1].toFloat()-240/2);
+  //   double x_raw = object[0].toFloat();
+  //   double y_raw = object[1].toFloat();
+
+  //   if(x_raw == 1000 && y_raw == 1000){
+  //     // OpenMV couldn't find a blob
+
+  //   }else{
+  //     // OpenMV found a blob
+
+  //     // DEFAULT OPENMV BEHAVIOR
+  //     // - finds blobs in frame, top-left = (0,0), bottom-right = (320,240)
+      
+  //     // Scale back to normal frame
+  //     double x = x_raw*2/RESOLUTION_WIDTH - 1;
+  //     double y = (-2*y_raw + RESOLUTION_HEIGHT)/RESOLUTION_WIDTH;
+
+  //     if (object.size() == 3) {
+  //       switch (object[2][0]) {
+  //         case 'r':
+  //           red.push_back(x);
+  //           red.push_back(y);
+
+  //           if(targetColor == targetColors::red){
+  //             targetDetection.push_back(x);
+  //             targetDetection.push_back(y);
+  //           }
+  //           break;
+  //         case 'g':
+  //           green.push_back(x);
+  //           green.push_back(y);
+
+  //           if(targetColor == targetColors::green){
+  //             targetDetection.push_back(x);
+  //             targetDetection.push_back(y);
+  //           }
+  //           break;
+  //         case 'b':
+  //           blue.push_back(x);
+  //           blue.push_back(y);
+
+  //           if(targetColor == targetColors::blue){
+  //             targetDetection.push_back(x);
+  //             targetDetection.push_back(y);
+  //           }
+  //           break;
+  //         default:
+  //           //do nothing, invalid color option
+  //           Serial.println("Invalid Color Option");
+  //           break;
+  //       }
+  //     }
+  //   }
+  //   object.clear();
+  // }
 
   if(targetDetection.size() > 0){
     // Detected a target
@@ -878,35 +960,33 @@ void processSerial(String msg) {
   }
 
 
-  ceilHeight = (double)splitData[3].toFloat();
+  // ceilHeight = (double)splitData[3].toFloat();
   if(rosClock_ceilHeight.isReady()) rosHandler.PublishTopic_Float64("ceilHeight",ceilHeight);
   // Serial.println(ceilHeight);
 
-  detections.clear();
-  detections.push_back(red);
-  detections.push_back(green);
-  detections.push_back(blue);
+  // detections.clear();
+  // detections.push_back(red);
+  // detections.push_back(green);
+  // detections.push_back(blue);
 
   String cameraMessage = "";
   int doubleDecimals = 2;
-  if(false){
-    if(red.size() != 0){
-      cameraMessage = cameraMessage + "Red: (" + roundDouble(red[0],doubleDecimals) + ", " + roundDouble(red[1],doubleDecimals) + ")";
-    }
-    if(green.size() != 0){
-      if(cameraMessage.length() != 0) cameraMessage = cameraMessage + " - ";
-      cameraMessage = cameraMessage + "Green: (" + roundDouble(green[0],doubleDecimals) + ", " + roundDouble(green[1],doubleDecimals) + ")";
-    }
-    if(blue.size() != 0){
-      if(cameraMessage.length() != 0) cameraMessage = cameraMessage + " - ";
-      cameraMessage = cameraMessage + "Blue: (" + roundDouble(blue[0],doubleDecimals) + ", " + roundDouble(blue[1],doubleDecimals) + ")";
-    }
+  // if(red.size() != 0){
+  //   cameraMessage = cameraMessage + "Red: (" + roundDouble(red[0],doubleDecimals) + ", " + roundDouble(red[1],doubleDecimals) + ")";
+  // }
+  // if(green.size() != 0){
+  //   if(cameraMessage.length() != 0) cameraMessage = cameraMessage + " - ";
+  //   cameraMessage = cameraMessage + "Green: (" + roundDouble(green[0],doubleDecimals) + ", " + roundDouble(green[1],doubleDecimals) + ")";
+  // }
+  // if(blue.size() != 0){
+  //   if(cameraMessage.length() != 0) cameraMessage = cameraMessage + " - ";
+  //   cameraMessage = cameraMessage + "Blue: (" + roundDouble(blue[0],doubleDecimals) + ", " + roundDouble(blue[1],doubleDecimals) + ")";
+  // }
+
+  if(targetDetection.size() == 0){
+    cameraMessage = "No target detected.";
   }else{
-    if(targetDetection.size() == 0){
-      cameraMessage = "No target detected.";
-    }else{
-      cameraMessage = "Target Detected (" + String(roundDouble(targetDetection[0],doubleDecimals)) + ", " + String(roundDouble(targetDetection[1],doubleDecimals)) + ")";
-    }
+    cameraMessage = "Target Detected (" + String(roundDouble(targetDetection[0],doubleDecimals)) + ", " + String(roundDouble(targetDetection[1],doubleDecimals)) + ")";
   }
   
   if(rosClock_cameraMessage.isReady()) rosHandler.PublishTopic_String(cameraMessageTopicName, cameraMessage);

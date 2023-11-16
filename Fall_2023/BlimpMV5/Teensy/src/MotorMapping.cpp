@@ -27,7 +27,7 @@ void MotorMapping::Init(int LSPin, int RSPin, int LMPin, int RMPin, double newde
     this->minCom = newminCom;
     this->maxCom = newmaxCom;
 
-    rosClock_motorWrite.setFrequency(10);
+    rosClock_motorWrite.setFrequency(5);
 }
 
 void MotorMapping::update(double pitch, double forward, double up, double yaw) {
