@@ -6,18 +6,13 @@ from pyb import UART
 # Color Tracking Thresholds (L Min, L Max, A Min, A Max, B Min, B Max)
 # The below thresholds track in general red/green things. You may wish to tune them...
 
-thresholds = [(0, 42, 23, 61, 20, 52), # generic_red_thresholds
-
-
-
-              #(26, 86, -114, -17, 6, 64), # generic_green_thresholds (GREEN GAMEBALL COLOR)
-              #(45, 65, -10, 0, 7, 15), # generic_purple_thresholds (PURPLE GAMEBALL COLOR)
-              (3, 66, -24, 32, -76, -28) # generic_blue_thresholds
+thresholds = [(3, 66, -24, 32, -76, -28), # generic_blue_thresholds
+              (0, 42, 23, 61, 20, 52), # generic_red_thresholds
+              (26, 86, -114, -17, 6, 64) # generic_green_thresholds (GREEN GAMEBALL COLOR)
               ]
 
 # You may pass up to 16 thresholds above. However, it's not really possible to segment any
 # scene with 16 thresholds before color thresholds start to overlap heavily.
-
 
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
@@ -28,7 +23,6 @@ sensor.set_auto_whitebal(False) # must be turned off for color tracking
 sensor.set_auto_exposure(False)
 sensor.set_saturation(2)
 sensor.set_brightness(-3)
-
 
 led1 = pyb.LED(1)
 led2 = pyb.LED(2)
@@ -55,29 +49,30 @@ while(True):
     blobList = img.find_blobs(thresholds, pixels_threshold=100, area_threshold=500)  #Threshhold number for resolution(distance)
     #the red,green,blue arrays to hold the index of the biggest blob and the area of the blobs
     #for comparison
-    redBlob = [1000,1000,0]
-    #purpleBlob =[1000,1000,0] #New Game ball
-    blueBlob =[1000,1000,0]
+
+    blueBlob =[1000,1000,0] # Blue Blimps
+    redBlob = [1000,1000,0] # Red Blimps
+    greenBlob =[1000,1000,0] # Game ball
 
 
    #loop over the list, compare all the pixels and return the biggest one
     for blob in blobList:
         if blob.elongation() < 0.8:
             if blob.density() > 0.3:
-    #find the biggest pixel area for each color, and center the camera based on the color we pick
-        #code = 1 is red
-        #code = 2 is green
-        #code = 4 is blue
-        #catogerize color
+            #find the biggest pixel area for each color, and center the camera based on the color we pick
+                #code = 1 is blue
+                #code = 2 is red
+                #code = 3 is green
+                #catogerize color
                 if blob.code() == 1:
-                    if blob.pixels() > redBlob[2]:
-                        redBlob = [blob.cxf(), blob.cyf(), blob.pixels()]
-                #elif blob.code() == 2:
-                    #if blob.pixels()> purpleBlob[2]:
-                        #purpleBlob = [blob.cxf(), blob.cyf(), blob.pixels()]
-                elif blob.code() == 4:
-                    if blob.pixels()> blueBlob[2]:
+                    if blob.pixels() > blueBlob[2]:
                         blueBlob = [blob.cxf(), blob.cyf(), blob.pixels()]
+                elif blob.code() == 2:
+                    if blob.pixels()> redBlob[2]:
+                        redBlob = [blob.cxf(), blob.cyf(), blob.pixels()]
+                elif blob.code() == 3:
+                    if blob.pixels()> greenBlob[2]:
+                        greenBlob = [blob.cxf(), blob.cyf(), blob.pixels()]
 
                 # These values depend on the blob not being circular - otherwise they will be shaky.
                 if blob.elongation() > 0.5:
@@ -94,52 +89,21 @@ while(True):
                 #print(blobList)
                 #print(clock.fps())
 
-
-    uart.write("%f"%redBlob[0])
-    uart.write(',')
-    uart.write("%f"%redBlob[1])
-    uart.write(',')
-    uart.write('rr,')
-    uart.write(';')
-    #uart.write("%f"%greenBlob[0])
-    #uart.write(',')
-    #uart.write("%f"%greenBlob[1])
-    #uart.write(',')
-    #uart.write('gg,')
-    #uart.write(';')
-    #uart.write("%f"%purpleBlob[0])
-    #uart.write(',')
-    #uart.write("%f"%purpleBlob[1])
-    #uart.write(',')
-    #uart.write('pp,')
-    #uart.write(';')
     uart.write("%f"%blueBlob[0])
     uart.write(',')
     uart.write("%f"%blueBlob[1])
     uart.write(',')
-    uart.write('bb,')
-    uart.write(';')
+    uart.write("%f"%redBlob[0])
+    uart.write(',')
+    uart.write("%f"%redBlob[1])
+    uart.write(',')
+    uart.write("%f"%greenBlob[0])
+    uart.write(',')
+    uart.write("%f"%greenBlob[1])
+    uart.write(',')
 
     uart.write(str(adc.read()/8.2758))
-    uart.write(';!\n')
-
-    # Testing
-
-    print("%f\n"%redBlob[0], end='')
-    print("%f\n"%redBlob[1], end='')
-    print("r")
-    #print("%f\n"%greenBlob[0], end='')
-    #print("%f\n"%greenBlob[1], end='')
-    #print("g")
-    print("%f\n"%blueBlob[0], end='')
-    print("%f\n"%blueBlob[1], end='')
-    print("b")
-    #print("%f\n"%purpleBlob[0], end='')
-    #print("%f\n"%purpleBlob[1], end='')
-    #print("p")
-
-    #print((adc.read()/8.2758))
-
+    uart.write(',#')
 
 
     #LED indicator
